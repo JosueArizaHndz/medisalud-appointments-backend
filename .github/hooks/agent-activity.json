@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "windows": "powershell -NoProfile -ExecutionPolicy Bypass -File .github\\log-agent-activity.ps1",
+        "linux": "bash .github/log-agent-activity.sh",
+        "osx": "bash .github/log-agent-activity.sh",
+        "timeout": 10
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "windows": "powershell -NoProfile -ExecutionPolicy Bypass -File .github\\log-agent-activity.ps1",
+        "linux": "bash .github/log-agent-activity.sh",
+        "osx": "bash .github/log-agent-activity.sh",
+        "timeout": 10
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "windows": "powershell -NoProfile -ExecutionPolicy Bypass -File .github\\log-agent-activity.ps1",
+        "linux": "bash .github/log-agent-activity.sh",
+        "osx": "bash .github/log-agent-activity.sh",
+        "timeout": 10
+      }
+    ]
+  }
+}
