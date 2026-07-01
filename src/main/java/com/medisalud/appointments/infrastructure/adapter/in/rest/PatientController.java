@@ -2,7 +2,7 @@ package com.medisalud.appointments.infrastructure.adapter.in.rest;
 
 import com.medisalud.appointments.application.dto.ApiResponse;
 import com.medisalud.appointments.application.dto.PatientResponse;
-import com.medisalud.appointments.application.service.PatientService;
+import com.medisalud.appointments.application.service.PatientServiceInterface;
 import com.medisalud.appointments.domain.port.in.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PatientController {
 
-    private final PatientService patientService;
+    private final PatientServiceInterface patientService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<PatientResponse>>> getAllPatients() {

@@ -14,7 +14,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class DoctorService implements DoctorQueryPort {
+public class DoctorService implements DoctorServiceInterface, DoctorQueryPort {
 
     private final DoctorRepositoryPort doctorRepositoryPort;
 
