@@ -15,4 +15,5 @@ public interface AppointmentRepositoryPort {
     List<Appointment> findByAppointmentDateBetween(LocalDateTime start, LocalDateTime end);
     void deleteById(UUID id);
     boolean existsById(UUID id);
+    List<Appointment> findByFilters(UUID doctorId, UUID patientId, String status, LocalDateTime startDate, LocalDateTime endDate);
 }

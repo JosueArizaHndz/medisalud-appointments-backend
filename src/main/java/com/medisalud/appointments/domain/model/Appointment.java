@@ -37,6 +37,8 @@ public class Appointment {
 
     private String notes;
 
+    private LocalDateTime cancellationDate;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

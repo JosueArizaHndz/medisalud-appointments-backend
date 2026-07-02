@@ -1,0 +1,433 @@
+{
+  "info": {
+    "name": "Medisalud - Citas Médicas API",
+    "description": "Colección completa de la API de gestión de citas médicas Medisalud",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "01 - Doctores",
+      "item": [
+        {
+          "name": "Listar Todos los Doctores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/doctors",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["doctors"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Doctor por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/doctors/{{doctorId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["doctors", "{{doctorId}}"]
+            }
+          }
+        },
+        {
+          "name": "Crear Doctor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) {",
+                  "    pm.collectionVariables.set('doctorId', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Carlos Rodríguez\",\n  \"email\": \"carlos.rodriguez@medisalud.com\",\n  \"specialty\": \"CARDIOLOGY\",\n  \"licenseNumber\": \"MED-99999\",\n  \"maxPatients\": 150\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/doctors",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["doctors"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Doctor",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Carlos Rodríguez Actualizado\",\n  \"email\": \"carlos.rodriguez@medisalud.com\",\n  \"specialty\": \"CARDIOLOGY\",\n  \"licenseNumber\": \"MED-99999\",\n  \"maxPatients\": 200\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/doctors/{{doctorId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["doctors", "{{doctorId}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Doctor",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/doctors/{{doctorId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["doctors", "{{doctorId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Pacientes",
+      "item": [
+        {
+          "name": "Listar Todos los Pacientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/patients",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["patients"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Paciente por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/patients/{{patientId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["patients", "{{patientId}}"]
+            }
+          }
+        },
+        {
+          "name": "Crear Paciente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) {",
+                  "    pm.collectionVariables.set('patientId', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana Martínez\",\n  \"identityDocument\": \"9876543210\",\n  \"phone\": \"3109876543\",\n  \"email\": \"ana.martinez@email.com\",\n  \"birthDate\": \"1990-05-20\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/patients",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["patients"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Paciente",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana Martínez Actualizada\",\n  \"identityDocument\": \"9876543210\",\n  \"phone\": \"3109876543\",\n  \"email\": \"ana.martinez.nuevo@email.com\",\n  \"birthDate\": \"1990-05-20\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/patients/{{patientId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["patients", "{{patientId}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Paciente",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/patients/{{patientId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["patients", "{{patientId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Citas Médicas",
+      "item": [
+        {
+          "name": "Listar Todas las Citas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments"]
+            }
+          }
+        },
+        {
+          "name": "Listar Citas con Filtros",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments?doctorId={{doctorId}}&status=PROGRAMADA",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments"],
+              "query": [
+                {"key": "doctorId", "value": "{{doctorId}", "enabled": true},
+                {"key": "patientId", "value": "", "enabled": false},
+                {"key": "status", "value": "PROGRAMADA", "enabled": true},
+                {"key": "startDate", "value": "", "enabled": false},
+                {"key": "endDate", "value": "", "enabled": false}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Obtener Cita por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments/{{appointmentId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments", "{{appointmentId}}"]
+            }
+          }
+        },
+        {
+          "name": "Citas por Doctor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments/doctor/{{doctorId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments", "doctor", "{{doctorId}}"]
+            }
+          }
+        },
+        {
+          "name": "Citas por Paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments/patient/{{patientId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments", "patient", "{{patientId}}"]
+            }
+          }
+        },
+        {
+          "name": "Citas por Fecha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments/date?date=2026-07-15",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments", "date"],
+              "query": [
+                {"key": "date", "value": "2026-07-15"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Cita Médica",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) {",
+                  "    pm.collectionVariables.set('appointmentId', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patientId}}\",\n  \"doctorId\": \"{{doctorId}}\",\n  \"appointmentDate\": \"2026-07-15T10:00:00\",\n  \"notes\": \"Consulta de control anual\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/appointments",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments"]
+            }
+          }
+        },
+        {
+          "name": "Cancelar Cita",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments/{{appointmentId}}/cancel",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments", "{{appointmentId}}", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "Reprogramar Cita",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.id) {",
+                  "    pm.collectionVariables.set('appointmentId', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments/{{appointmentId}}/reschedule?newDate=2026-07-16T14:00:00",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments", "{{appointmentId}}", "reschedule"],
+              "query": [
+                {"key": "newDate", "value": "2026-07-16T14:00:00"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Disponibilidad",
+      "item": [
+        {
+          "name": "Consultar Disponibilidad del Médico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/appointments/availability?doctorId={{doctorId}}&fechaInicio=2026-07-15&fechaFin=2026-07-19",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["appointments", "availability"],
+              "query": [
+                {"key": "doctorId", "value": "{{doctorId}}"},
+                {"key": "fechaInicio", "value": "2026-07-15"},
+                {"key": "fechaFin", "value": "2026-07-19"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Documentación",
+      "item": [
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:8080/swagger-ui.html"
+          }
+        },
+        {
+          "name": "API Docs (OpenAPI JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:8080/api-docs"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {"key": "doctorId", "value": "", "type": "string"},
+    {"key": "patientId", "value": "", "type": "string"},
+    {"key": "appointmentId", "value": "", "type": "string"}
+  ]
+}

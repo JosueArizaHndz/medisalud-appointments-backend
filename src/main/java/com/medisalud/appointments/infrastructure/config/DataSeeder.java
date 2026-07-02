@@ -26,8 +26,8 @@ public class DataSeeder implements CommandLineRunner {
                 Doctor doctor1 = Doctor.builder()
                         .name("Dra. María González")
                         .email("maria.gonzalez@medisalud.com")
-                        .specialty("CARDIOLOGIA")
-                        .licenseNumber("MED-001")
+                        .specialty("Cardiología")
+                        .licenseNumber("555-1001")
                         .maxPatients(30)
                         .active(true)
                         .build();
@@ -35,8 +35,8 @@ public class DataSeeder implements CommandLineRunner {
                 Doctor doctor2 = Doctor.builder()
                         .name("Dr. Carlos Ruiz")
                         .email("carlos.ruiz@medisalud.com")
-                        .specialty("PEDIATRIA")
-                        .licenseNumber("MED-002")
+                        .specialty("Pediatría")
+                        .licenseNumber("555-1002")
                         .maxPatients(40)
                         .active(true)
                         .build();
@@ -44,8 +44,8 @@ public class DataSeeder implements CommandLineRunner {
                 Doctor doctor3 = Doctor.builder()
                         .name("Dra. Ana López")
                         .email("ana.lopez@medisalud.com")
-                        .specialty("DERMATOLOGIA")
-                        .licenseNumber("MED-003")
+                        .specialty("Dermatología")
+                        .licenseNumber("555-1003")
                         .maxPatients(25)
                         .active(true)
                         .build();

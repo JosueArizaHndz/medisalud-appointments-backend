@@ -76,4 +76,35 @@ public class JpaAppointmentRepository implements com.medisalud.appointments.doma
         Appointment appointment = entityManager.find(Appointment.class, id);
         return appointment != null;
     }
+
+    @Override
+    public List<Appointment> findByFilters(UUID doctorId, UUID patientId, String status, LocalDateTime startDate, LocalDateTime endDate) {
+        StringBuilder jpql = new StringBuilder("SELECT a FROM Appointment a WHERE 1=1");
+        
+        if (doctorId != null) {
+            jpql.append(" AND a.doctorId = :doctorId");
+        }
+        if (patientId != null) {
+            jpql.append(" AND a.patientId = :patientId");
+        }
+        if (status != null && !status.isEmpty()) {
+            jpql.append(" AND a.status = :status");
+        }
+        if (startDate != null) {
+            jpql.append(" AND a.appointmentDate >= :startDate");
+        }
+        if (endDate != null) {
+            jpql.append(" AND a.appointmentDate <= :endDate");
+        }
+        
+        var query = entityManager.createQuery(jpql.toString(), Appointment.class);
+        
+        if (doctorId != null) query.setParameter("doctorId", doctorId);
+        if (patientId != null) query.setParameter("patientId", patientId);
+        if (status != null && !status.isEmpty()) query.setParameter("status", status);
+        if (startDate != null) query.setParameter("startDate", startDate);
+        if (endDate != null) query.setParameter("endDate", endDate);
+        
+        return query.getResultList();
+    }
 }

@@ -1,6 +1,7 @@
 package com.medisalud.appointments.application.service;
 
 import com.medisalud.appointments.application.dto.AppointmentResponse;
+import com.medisalud.appointments.application.dto.AvailableSlot;
 import com.medisalud.appointments.domain.model.Appointment;
 import com.medisalud.appointments.domain.port.in.*;
 import java.time.LocalDate;
@@ -15,4 +16,8 @@ public interface AppointmentServiceInterface {
     List<Appointment> getAppointmentsByDate(LocalDate date);
     AppointmentResponse createAppointment(CreateAppointmentCommand command);
     AppointmentResponse cancelAppointment(CancelAppointmentCommand command);
+    AppointmentResponse rescheduleAppointment(RescheduleAppointmentCommand command);
+    AppointmentResponse mapToResponse(Appointment appointment);
+    List<AvailableSlot> getAvailableSlots(AvailableSlotsQuery query);
+    List<AppointmentResponse> listAppointments(ListAppointmentsQuery query);
 }

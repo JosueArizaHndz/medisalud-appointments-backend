@@ -31,11 +31,13 @@ public class Patient {
     @Column(unique = true)
     private String identityDocument;
 
-    @Pattern(regexp = "^\\d{10}$", message = "El teléfono debe tener 10 dígitos")
+    @NotBlank(message = "El teléfono es obligatorio")
+    @Pattern(regexp = "^\\d{7,}$", message = "El teléfono debe tener mínimo 7 dígitos")
     private String phone;
 
     private LocalDate birthDate;
 
+    @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email debe ser válido")
     private String email;
 

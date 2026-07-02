@@ -2,8 +2,12 @@ package com.medisalud.appointments.infrastructure.adapter.in.rest;
 
 import com.medisalud.appointments.application.dto.ApiResponse;
 import com.medisalud.appointments.application.dto.AppointmentResponse;
+import com.medisalud.appointments.application.dto.AvailableSlot;
 import com.medisalud.appointments.application.service.AppointmentServiceInterface;
 import com.medisalud.appointments.domain.port.in.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -12,37 +16,82 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/appointments")
 @RequiredArgsConstructor
+@Tag(name = "Appointments", description = "API para gestión de citas médicas")
 public class AppointmentController {
 
     private final AppointmentServiceInterface appointmentService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getAllAppointments() {
+    @Operation(
+        summary = "Consultar citas médicas con filtros",
+        description = "Obtiene lista de citas médicas. Todos los filtros son opcionales.",
+        responses = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Citas obtenidas exitosamente")
+        }
+    )
+    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getAllAppointments(
+            @Parameter(description = "ID del médico")
+            @RequestParam(required = false) UUID doctorId,
+            
+            @Parameter(description = "ID del paciente")
+            @RequestParam(required = false) UUID patientId,
+            
+            @Parameter(description = "Estado de la cita (PROGRAMADA, CONFIRMADA, EN_PROCESO, FINALIZADA, CANCELADA, NO_ASISTIO)")
+            @RequestParam(required = false) String status,
+            
+            @Parameter(description = "Fecha/hora inicio del rango")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            
+            @Parameter(description = "Fecha/hora fin del rango")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        
         List<com.medisalud.appointments.domain.model.Appointment> appointments = appointmentService.getAllAppointments();
         List<AppointmentResponse> responses = appointments.stream()
-                .map(a -> new AppointmentResponse(
-                        a.getId(), a.getPatientId(), null, a.getDoctorId(), null, null,
-                        a.getAppointmentDate(), a.getStatus(), a.getNotes(),
-                        a.getCreatedAt(), a.getUpdatedAt()))
+                .map(appointmentService::mapToResponse)
                 .toList();
+        
+        // Apply filters
+        if (doctorId != null) {
+            responses = responses.stream()
+                    .filter(r -> r.doctorId().equals(doctorId))
+                    .toList();
+        }
+        if (patientId != null) {
+            responses = responses.stream()
+                    .filter(r -> r.patientId().equals(patientId))
+                    .toList();
+        }
+        if (status != null && !status.isEmpty()) {
+            responses = responses.stream()
+                    .filter(r -> r.status().equalsIgnoreCase(status))
+                    .toList();
+        }
+        if (startDate != null) {
+            responses = responses.stream()
+                    .filter(r -> r.appointmentDate() != null && !r.appointmentDate().isBefore(startDate))
+                    .toList();
+        }
+        if (endDate != null) {
+            responses = responses.stream()
+                    .filter(r -> r.appointmentDate() != null && !r.appointmentDate().isAfter(endDate))
+                    .toList();
+        }
+        
         return ResponseEntity.ok(ApiResponse.ok("Citas obtenidas exitosamente", responses));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<AppointmentResponse>> getAppointmentById(@PathVariable String id) {
         var appointment = appointmentService.getAppointmentById(java.util.UUID.fromString(id));
-        var response = appointmentService.createAppointment(
-                new CreateAppointmentCommand(
-                        appointment.getPatientId(),
-                        appointment.getDoctorId(),
-                        appointment.getAppointmentDate(),
-                        appointment.getNotes()));
-        return ResponseEntity.ok(ApiResponse.ok(response));
+        var response = appointmentService.mapToResponse(appointment);
+        return ResponseEntity.ok(ApiResponse.ok("Cita obtenida exitosamente", response));
     }
 
     @GetMapping("/doctor/{doctorId}")
@@ -50,10 +99,7 @@ public class AppointmentController {
         List<com.medisalud.appointments.domain.model.Appointment> appointments =
                 appointmentService.getAppointmentsByDoctorId(java.util.UUID.fromString(doctorId));
         List<AppointmentResponse> responses = appointments.stream()
-                .map(a -> new AppointmentResponse(
-                        a.getId(), a.getPatientId(), null, a.getDoctorId(), null, null,
-                        a.getAppointmentDate(), a.getStatus(), a.getNotes(),
-                        a.getCreatedAt(), a.getUpdatedAt()))
+                .map(appointmentService::mapToResponse)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(responses));
     }
@@ -63,10 +109,7 @@ public class AppointmentController {
         List<com.medisalud.appointments.domain.model.Appointment> appointments =
                 appointmentService.getAppointmentsByPatientId(java.util.UUID.fromString(patientId));
         List<AppointmentResponse> responses = appointments.stream()
-                .map(a -> new AppointmentResponse(
-                        a.getId(), a.getPatientId(), null, a.getDoctorId(), null, null,
-                        a.getAppointmentDate(), a.getStatus(), a.getNotes(),
-                        a.getCreatedAt(), a.getUpdatedAt()))
+                .map(appointmentService::mapToResponse)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(responses));
     }
@@ -77,10 +120,7 @@ public class AppointmentController {
         List<com.medisalud.appointments.domain.model.Appointment> appointments =
                 appointmentService.getAppointmentsByDate(date);
         List<AppointmentResponse> responses = appointments.stream()
-                .map(a -> new AppointmentResponse(
-                        a.getId(), a.getPatientId(), null, a.getDoctorId(), null, null,
-                        a.getAppointmentDate(), a.getStatus(), a.getNotes(),
-                        a.getCreatedAt(), a.getUpdatedAt()))
+                .map(appointmentService::mapToResponse)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok("Citas para la fecha " + date, responses));
     }
@@ -92,10 +132,65 @@ public class AppointmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response));
     }
 
-    @PutMapping("/{id}/cancel")
+    @PatchMapping("/{id}/cancel")
+    @Operation(
+        summary = "Cancelar una cita médica",
+        description = "Cancela una cita existente. Si la cancelación es con menos de 2 horas de anticipación, se registra una penalización.",
+        responses = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cita cancelada exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Cita no encontrada"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Cita ya cancelada o finalizada")
+        }
+    )
     public ResponseEntity<ApiResponse<AppointmentResponse>> cancelAppointment(@PathVariable String id) {
         AppointmentResponse response = appointmentService.cancelAppointment(
                 new CancelAppointmentCommand(java.util.UUID.fromString(id)));
         return ResponseEntity.ok(ApiResponse.ok("Cita cancelada exitosamente", response));
+    }
+
+    @PatchMapping("/{id}/reschedule")
+    @Operation(
+        summary = "Reprogramar una cita médica",
+        description = "Cambia la fecha/hora de una cita. Cancela la cita anterior y crea una nueva. Si la reprogramación es con menos de 2 horas de anticipación, se registra penalización.",
+        responses = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cita reprogramada exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Cita no encontrada"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Cita ya cancelada o finalizada"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Fecha inválida o conflicto de horario")
+        }
+    )
+    public ResponseEntity<ApiResponse<AppointmentResponse>> rescheduleAppointment(
+            @PathVariable String id,
+            @Parameter(description = "Nueva fecha/hora de la cita", required = true, example = "2026-07-15T10:00:00")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime newDate) {
+        
+        AppointmentResponse response = appointmentService.rescheduleAppointment(
+                new com.medisalud.appointments.domain.port.in.RescheduleAppointmentCommand(
+                        java.util.UUID.fromString(id), newDate));
+        return ResponseEntity.ok(ApiResponse.ok("Cita reprogramada exitosamente", response));
+    }
+
+    @GetMapping("/availability")
+    @Operation(
+        summary = "Consultar disponibilidad de un médico",
+        description = "Obtiene las franjas horarias disponibles para un médico en un rango de fechas",
+        responses = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Disponibilidad obtenida exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Médico no encontrado")
+        }
+    )
+    public ResponseEntity<ApiResponse<List<AvailableSlot>>> getAvailableSlots(
+            @Parameter(description = "ID del médico", required = true)
+            @RequestParam UUID doctorId,
+            
+            @Parameter(description = "Fecha de inicio del rango", required = true, example = "2026-07-06")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
+            
+            @Parameter(description = "Fecha de fin del rango", required = true, example = "2026-07-10")
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
+        
+        AvailableSlotsQuery query = new AvailableSlotsQuery(doctorId, fechaInicio, fechaFin);
+        List<AvailableSlot> availableSlots = appointmentService.getAvailableSlots(query);
+        return ResponseEntity.ok(ApiResponse.ok("Disponibilidad obtenida exitosamente", availableSlots));
     }
 }

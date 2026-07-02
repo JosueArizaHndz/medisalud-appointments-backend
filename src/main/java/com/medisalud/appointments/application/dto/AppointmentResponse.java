@@ -13,6 +13,7 @@ public record AppointmentResponse(
     LocalDateTime appointmentDate,
     String status,
     String notes,
+    LocalDateTime cancellationDate,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {}

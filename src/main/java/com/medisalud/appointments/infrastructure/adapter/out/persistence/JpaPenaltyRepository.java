@@ -5,6 +5,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,5 +35,14 @@ public class JpaPenaltyRepository implements com.medisalud.appointments.domain.p
         if (penalty != null) {
             entityManager.remove(penalty);
         }
+    }
+
+    @Override
+    public long countByPatientIdAndCreatedAtAfter(UUID patientId, LocalDateTime createdAt) {
+        return entityManager.createQuery(
+                "SELECT COUNT(p) FROM Penalty p WHERE p.patientId = :patientId AND p.createdAt >= :createdAt", Long.class)
+                .setParameter("patientId", patientId)
+                .setParameter("createdAt", createdAt)
+                .getSingleResult();
     }
 }

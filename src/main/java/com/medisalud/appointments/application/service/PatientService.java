@@ -44,6 +44,14 @@ public class PatientService implements PatientServiceInterface, PatientQueryPort
 
     @Transactional
     public PatientResponse createPatient(CreatePatientCommand command) {
+        if (patientRepositoryPort.findByIdentityDocument(command.identityDocument()).isPresent()) {
+            throw new IllegalStateException("El paciente con documento " + command.identityDocument() + " ya existe");
+        }
+
+        if (command.birthDate() != null && command.birthDate().isAfter(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha de nacimiento no puede ser futura");
+        }
+
         Patient patient = Patient.builder()
                 .name(command.name())
                 .identityDocument(command.identityDocument())
@@ -61,6 +69,10 @@ public class PatientService implements PatientServiceInterface, PatientQueryPort
     @Transactional
     public PatientResponse updatePatient(UUID id, UpdatePatientCommand command) {
         Patient patient = getPatientById(id);
+
+        if (command.birthDate() != null && command.birthDate().isAfter(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha de nacimiento no puede ser futura");
+        }
 
         patient.setName(command.name());
         patient.setPhone(command.phone());

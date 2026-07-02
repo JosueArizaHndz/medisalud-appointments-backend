@@ -59,6 +59,19 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now()
         );
         error.setDetails(errors);
+        
+        // Construir mensaje con todos los errores
+        StringBuilder message = new StringBuilder("Errores de validación: ");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : errors.entrySet()) {
+            if (!first) {
+                message.append("; ");
+            }
+            message.append(entry.getKey()).append(" - ").append(entry.getValue());
+            first = false;
+        }
+        error.setMessage(message.toString());
+        
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
