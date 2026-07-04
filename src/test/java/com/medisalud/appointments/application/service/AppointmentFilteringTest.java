@@ -220,7 +220,7 @@ class AppointmentFilteringTest {
         AppointmentResponse result = filtered.get(0);
         assertEquals(doctorId2, result.doctorId());
         assertEquals(patientId2, result.patientId());
-        assertEquals("PROGRAMADA", result.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, result.status());
     }
 
     @Test

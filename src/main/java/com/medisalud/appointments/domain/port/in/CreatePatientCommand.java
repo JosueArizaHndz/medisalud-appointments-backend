@@ -12,8 +12,8 @@ public record CreatePatientCommand(
     String name,
 
     @NotBlank(message = "El documento es obligatorio")
-    @Size(min = 1, max = 20, message = "El documento debe tener máximo 20 caracteres")
-    @Schema(description = "Número de documento de identidad", example = "1234567890", minLength = 1, maxLength = 20)
+    @Size(min = 7, max = 20, message = "El documento debe tener entre 7 y 20 caracteres")
+    @Schema(description = "Número de documento de identidad", example = "1234567890", minLength = 7, maxLength = 20)
     String identityDocument,
 
     @NotBlank(message = "El teléfono es obligatorio")

@@ -23,11 +23,11 @@ public class Patient {
     private UUID id;
 
     @NotBlank(message = "El nombre es obligatorio")
-    @Size(max = 100)
+    @Size(min = 3, max = 100, message = "El nombre debe tener entre 3 y 100 caracteres")
     private String name;
 
     @NotBlank(message = "La cédula es obligatoria")
-    @Size(max = 20)
+    @Size(min = 7, max = 20, message = "La cédula debe tener entre 7 y 20 caracteres")
     @Column(unique = true)
     private String identityDocument;
 

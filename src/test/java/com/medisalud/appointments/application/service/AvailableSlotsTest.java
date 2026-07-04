@@ -134,7 +134,7 @@ class AvailableSlotsTest {
                 .patientId(patientId)
                 .doctorId(doctorId)
                 .appointmentDate(bookedTime)
-                .status(AppointmentStatus.PROGRAMADA.name())
+                .status(AppointmentStatus.PROGRAMADA)
                 .build();
         appointmentRepositoryPort.save(appointment);
 
@@ -166,7 +166,7 @@ class AvailableSlotsTest {
                 .patientId(patientId)
                 .doctorId(doctorId)
                 .appointmentDate(cancelledTime)
-                .status(AppointmentStatus.CANCELADA.name())
+                .status(AppointmentStatus.CANCELADA)
                 .build();
         appointmentRepositoryPort.save(appointment);
 

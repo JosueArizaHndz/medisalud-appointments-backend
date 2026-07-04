@@ -8,6 +8,7 @@ public record DoctorResponse(
     String name,
     String email,
     String specialty,
+    String phone,
     String licenseNumber,
     Integer maxPatients,
     Boolean active,

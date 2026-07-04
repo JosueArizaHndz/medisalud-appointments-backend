@@ -66,7 +66,7 @@ public class JpaAppointmentRepository implements com.medisalud.appointments.doma
     public void deleteById(UUID id) {
         Appointment appointment = entityManager.find(Appointment.class, id);
         if (appointment != null) {
-            appointment.setStatus("CANCELADA");
+            appointment.setStatus(com.medisalud.appointments.domain.enums.AppointmentStatus.CANCELADA);
             entityManager.merge(appointment);
         }
     }
@@ -78,7 +78,7 @@ public class JpaAppointmentRepository implements com.medisalud.appointments.doma
     }
 
     @Override
-    public List<Appointment> findByFilters(UUID doctorId, UUID patientId, String status, LocalDateTime startDate, LocalDateTime endDate) {
+    public List<Appointment> findByFilters(UUID doctorId, UUID patientId, com.medisalud.appointments.domain.enums.AppointmentStatus status, LocalDateTime startDate, LocalDateTime endDate) {
         StringBuilder jpql = new StringBuilder("SELECT a FROM Appointment a WHERE 1=1");
         
         if (doctorId != null) {
@@ -87,7 +87,7 @@ public class JpaAppointmentRepository implements com.medisalud.appointments.doma
         if (patientId != null) {
             jpql.append(" AND a.patientId = :patientId");
         }
-        if (status != null && !status.isEmpty()) {
+        if (status != null) {
             jpql.append(" AND a.status = :status");
         }
         if (startDate != null) {
@@ -101,7 +101,7 @@ public class JpaAppointmentRepository implements com.medisalud.appointments.doma
         
         if (doctorId != null) query.setParameter("doctorId", doctorId);
         if (patientId != null) query.setParameter("patientId", patientId);
-        if (status != null && !status.isEmpty()) query.setParameter("status", status);
+        if (status != null) query.setParameter("status", status);
         if (startDate != null) query.setParameter("startDate", startDate);
         if (endDate != null) query.setParameter("endDate", endDate);
         

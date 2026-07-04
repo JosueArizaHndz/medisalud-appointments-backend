@@ -27,7 +27,8 @@ public class DataSeeder implements CommandLineRunner {
                         .name("Dra. María González")
                         .email("maria.gonzalez@medisalud.com")
                         .specialty("Cardiología")
-                        .licenseNumber("555-1001")
+                        .phone("5551001")
+                        .licenseNumber("LIC-001")
                         .maxPatients(30)
                         .active(true)
                         .build();
@@ -36,7 +37,8 @@ public class DataSeeder implements CommandLineRunner {
                         .name("Dr. Carlos Ruiz")
                         .email("carlos.ruiz@medisalud.com")
                         .specialty("Pediatría")
-                        .licenseNumber("555-1002")
+                        .phone("5551002")
+                        .licenseNumber("LIC-002")
                         .maxPatients(40)
                         .active(true)
                         .build();
@@ -45,7 +47,8 @@ public class DataSeeder implements CommandLineRunner {
                         .name("Dra. Ana López")
                         .email("ana.lopez@medisalud.com")
                         .specialty("Dermatología")
-                        .licenseNumber("555-1003")
+                        .phone("5551003")
+                        .licenseNumber("LIC-003")
                         .maxPatients(25)
                         .active(true)
                         .build();

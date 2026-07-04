@@ -26,7 +26,7 @@ public class DoctorController {
         List<DoctorResponse> responses = doctors.stream()
                 .map(d -> new DoctorResponse(
                         d.getId(), d.getName(), d.getEmail(), d.getSpecialty(),
-                        d.getLicenseNumber(), d.getMaxPatients(), d.getActive(),
+                        d.getPhone(), d.getLicenseNumber(), d.getMaxPatients(), d.getActive(),
                         d.getCreatedAt(), d.getUpdatedAt()))
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok("Doctores obtenidos exitosamente", responses));
@@ -37,7 +37,7 @@ public class DoctorController {
         Doctor doctor = doctorService.getDoctorById(java.util.UUID.fromString(id));
         DoctorResponse response = new DoctorResponse(
                 doctor.getId(), doctor.getName(), doctor.getEmail(), doctor.getSpecialty(),
-                doctor.getLicenseNumber(), doctor.getMaxPatients(), doctor.getActive(),
+                doctor.getPhone(), doctor.getLicenseNumber(), doctor.getMaxPatients(), doctor.getActive(),
                 doctor.getCreatedAt(), doctor.getUpdatedAt());
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
@@ -48,7 +48,7 @@ public class DoctorController {
         List<DoctorResponse> responses = doctors.stream()
                 .map(d -> new DoctorResponse(
                         d.getId(), d.getName(), d.getEmail(), d.getSpecialty(),
-                        d.getLicenseNumber(), d.getMaxPatients(), d.getActive(),
+                        d.getPhone(), d.getLicenseNumber(), d.getMaxPatients(), d.getActive(),
                         d.getCreatedAt(), d.getUpdatedAt()))
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok("Doctores activos obtenidos exitosamente", responses));

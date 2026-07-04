@@ -52,37 +52,10 @@ public class AppointmentController {
             @Parameter(description = "Fecha/hora fin del rango")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         
-        List<com.medisalud.appointments.domain.model.Appointment> appointments = appointmentService.getAllAppointments();
-        List<AppointmentResponse> responses = appointments.stream()
-                .map(appointmentService::mapToResponse)
-                .toList();
-        
-        // Apply filters
-        if (doctorId != null) {
-            responses = responses.stream()
-                    .filter(r -> r.doctorId().equals(doctorId))
-                    .toList();
-        }
-        if (patientId != null) {
-            responses = responses.stream()
-                    .filter(r -> r.patientId().equals(patientId))
-                    .toList();
-        }
-        if (status != null && !status.isEmpty()) {
-            responses = responses.stream()
-                    .filter(r -> r.status().equalsIgnoreCase(status))
-                    .toList();
-        }
-        if (startDate != null) {
-            responses = responses.stream()
-                    .filter(r -> r.appointmentDate() != null && !r.appointmentDate().isBefore(startDate))
-                    .toList();
-        }
-        if (endDate != null) {
-            responses = responses.stream()
-                    .filter(r -> r.appointmentDate() != null && !r.appointmentDate().isAfter(endDate))
-                    .toList();
-        }
+        // Use JPQL filtering instead of in-memory streaming for better performance
+        List<AppointmentResponse> responses = appointmentService.listAppointments(
+                new com.medisalud.appointments.domain.port.in.ListAppointmentsQuery(
+                        doctorId, patientId, status, startDate, endDate));
         
         return ResponseEntity.ok(ApiResponse.ok("Citas obtenidas exitosamente", responses));
     }
@@ -168,6 +141,57 @@ public class AppointmentController {
                 new com.medisalud.appointments.domain.port.in.RescheduleAppointmentCommand(
                         java.util.UUID.fromString(id), newDate));
         return ResponseEntity.ok(ApiResponse.ok("Cita reprogramada exitosamente", response));
+    }
+
+    @PatchMapping("/{id}/confirm")
+    @Operation(
+        summary = "Confirmar una cita médica",
+        description = "Cambia el estado de la cita a CONFIRMADA.",
+        responses = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cita confirmada exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Cita no encontrada")
+        }
+    )
+    public ResponseEntity<ApiResponse<AppointmentResponse>> confirmAppointment(@PathVariable String id) {
+        AppointmentResponse response = appointmentService.updateStatus(
+                new com.medisalud.appointments.domain.port.in.UpdateAppointmentStatusCommand(
+                        java.util.UUID.fromString(id),
+                        com.medisalud.appointments.domain.enums.AppointmentStatus.CONFIRMADA));
+        return ResponseEntity.ok(ApiResponse.ok("Cita confirmada exitosamente", response));
+    }
+
+    @PatchMapping("/{id}/attend")
+    @Operation(
+        summary = "Marcar una cita como atendida",
+        description = "Cambia el estado de la cita a ATENDIDA.",
+        responses = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cita marcada como atendida exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Cita no encontrada")
+        }
+    )
+    public ResponseEntity<ApiResponse<AppointmentResponse>> attendAppointment(@PathVariable String id) {
+        AppointmentResponse response = appointmentService.updateStatus(
+                new com.medisalud.appointments.domain.port.in.UpdateAppointmentStatusCommand(
+                        java.util.UUID.fromString(id),
+                        com.medisalud.appointments.domain.enums.AppointmentStatus.ATENDIDA));
+        return ResponseEntity.ok(ApiResponse.ok("Cita marcada como atendida exitosamente", response));
+    }
+
+    @PatchMapping("/{id}/finalize")
+    @Operation(
+        summary = "Finalizar una cita médica",
+        description = "Cambia el estado de la cita a FINALIZADA.",
+        responses = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Cita finalizada exitosamente"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Cita no encontrada")
+        }
+    )
+    public ResponseEntity<ApiResponse<AppointmentResponse>> finalizeAppointment(@PathVariable String id) {
+        AppointmentResponse response = appointmentService.updateStatus(
+                new com.medisalud.appointments.domain.port.in.UpdateAppointmentStatusCommand(
+                        java.util.UUID.fromString(id),
+                        com.medisalud.appointments.domain.enums.AppointmentStatus.FINALIZADA));
+        return ResponseEntity.ok(ApiResponse.ok("Cita finalizada exitosamente", response));
     }
 
     @GetMapping("/availability")

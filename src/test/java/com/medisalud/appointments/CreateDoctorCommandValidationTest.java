@@ -25,6 +25,7 @@ class CreateDoctorCommandValidationTest {
             "Dr. Juan Pérez",
             "juan@email.com",
             "CARDIOLOGIA",
+            "5551001",
             "MED-001",
             30
         );
@@ -39,6 +40,7 @@ class CreateDoctorCommandValidationTest {
             "",
             "juan@email.com",
             "CARDIOLOGIA",
+            "5551001",
             "MED-001",
             30
         );
@@ -56,6 +58,7 @@ class CreateDoctorCommandValidationTest {
             "Dr",
             "juan@email.com",
             "CARDIOLOGIA",
+            "5551001",
             "MED-001",
             30
         );
@@ -71,8 +74,9 @@ class CreateDoctorCommandValidationTest {
     void shouldFailWhenEmailIsInvalid() {
         CreateDoctorCommand command = new CreateDoctorCommand(
             "Dr. Juan Pérez",
-            "invalid-email",
+            "invalid-email-format",
             "CARDIOLOGIA",
+            "5551001",
             "MED-001",
             30
         );
@@ -85,20 +89,20 @@ class CreateDoctorCommandValidationTest {
     }
 
     @Test
-    void shouldFailWhenEmailIsBlank() {
+    void shouldPassWhenEmailIsBlank() {
         CreateDoctorCommand command = new CreateDoctorCommand(
             "Dr. Juan Pérez",
             "",
             "CARDIOLOGIA",
+            "5551001",
             "MED-001",
             30
         );
 
         Set<ConstraintViolation<CreateDoctorCommand>> violations = validator.validate(command);
-        assertTrue(violations.size() >= 1, "Debe haber al menos una violación");
         boolean hasEmailViolation = violations.stream()
             .anyMatch(v -> v.getPropertyPath().toString().equals("email"));
-        assertTrue(hasEmailViolation, "Debe haber violación en el campo email");
+        assertFalse(hasEmailViolation, "Email en blanco no debe causar violación (es opcional)");
     }
 
     @Test
@@ -107,6 +111,7 @@ class CreateDoctorCommandValidationTest {
             "Dr. Juan Pérez",
             "juan@email.com",
             "",
+            "5551001",
             "MED-001",
             30
         );

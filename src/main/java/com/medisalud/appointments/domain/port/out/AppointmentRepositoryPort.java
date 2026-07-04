@@ -1,5 +1,6 @@
 package com.medisalud.appointments.domain.port.out;
 
+import com.medisalud.appointments.domain.enums.AppointmentStatus;
 import com.medisalud.appointments.domain.model.Appointment;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,5 +16,5 @@ public interface AppointmentRepositoryPort {
     List<Appointment> findByAppointmentDateBetween(LocalDateTime start, LocalDateTime end);
     void deleteById(UUID id);
     boolean existsById(UUID id);
-    List<Appointment> findByFilters(UUID doctorId, UUID patientId, String status, LocalDateTime startDate, LocalDateTime endDate);
+    List<Appointment> findByFilters(UUID doctorId, UUID patientId, AppointmentStatus status, LocalDateTime startDate, LocalDateTime endDate);
 }

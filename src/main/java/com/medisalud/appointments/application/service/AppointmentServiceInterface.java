@@ -17,6 +17,7 @@ public interface AppointmentServiceInterface {
     AppointmentResponse createAppointment(CreateAppointmentCommand command);
     AppointmentResponse cancelAppointment(CancelAppointmentCommand command);
     AppointmentResponse rescheduleAppointment(RescheduleAppointmentCommand command);
+    AppointmentResponse updateStatus(UpdateAppointmentStatusCommand command);
     AppointmentResponse mapToResponse(Appointment appointment);
     List<AvailableSlot> getAvailableSlots(AvailableSlotsQuery query);
     List<AppointmentResponse> listAppointments(ListAppointmentsQuery query);

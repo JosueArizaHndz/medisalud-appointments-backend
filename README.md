@@ -156,7 +156,79 @@ La aplicación se ejecutará en: **http://localhost:8080**
 .\gradlew test --tests "AppointmentCancellationTest"
 ```
 
-## 📚 API Documentation
+## � Contenedorización con Docker
+
+### Prerrequisitos
+
+- **Docker** instalado y en ejecución
+
+### Construir la Imagen
+
+```bash
+# Construir imagen Docker
+docker build -t medisalud .
+```
+
+### Ejecutar el Contenedor
+
+```bash
+# Ejecutar contenedor
+docker run -p 8080:8080 medisalud
+```
+
+### Verificar Funcionamiento
+
+Una vez ejecutado el contenedor, acceder a:
+
+- **Aplicación:** http://localhost:8080
+- **Swagger UI:** http://localhost:8080/swagger-ui.html
+- **H2 Console:** http://localhost:8080/h2-console
+
+### Comandos Útiles
+
+```bash
+# Construir y ejecutar en un solo comando
+docker build -t medisalud . && docker run -p 8080:8080 medisalud
+
+# Ejecutar con nombre personalizado
+docker run --name medisalud-app -p 8080:8080 medisalud
+
+# Ver logs del contenedor
+docker logs medisalud-app
+
+# Detener contenedor
+docker stop medisalud-app
+
+# Eliminar contenedor
+docker rm medisalud-app
+
+# Eliminar imagen
+docker rmi medisalud
+```
+
+### Configuración Docker
+
+El proyecto incluye un **Dockerfile multi-stage** que:
+
+- ✅ Usa Eclipse Temurin JDK 21 para build
+- ✅ Usa Eclipse Temurin JRE 21 para runtime (imagen ligera)
+- ✅ Optimiza capas con Gradle wrapper
+- ✅ Excluye tests en la construcción
+- ✅ Configura JVM para contenedores
+- ✅ Crea directorio `/app/data` para base de datos H2
+- ✅ Expone puerto 8080
+
+### Notas Importantes
+
+- La base de datos H2 usa modo file-based (`jdbc:h2:file:./data/medisalud`)
+- Los datos se almacenan dentro del contenedor (se pierden al eliminarlo)
+- Para persistencia de datos, usar volúmenes de Docker:
+  ```bash
+  docker run -p 8080:8080 -v medisalud-data:/app/data medisalud
+  ```
+- **No se migró a PostgreSQL** - se mantiene H2 para desarrollo
+
+## �📚 API Documentation
 
 ### Swagger UI
 
@@ -385,10 +457,11 @@ GET /appointments/availability?doctorId=a1b2c3d4-e5f6-7890-abcd-ef1234567890&fec
 ## 📋 Reglas de Negocio Implementadas
 
 ### Validaciones de Doctores
-- ✅ Nombre obligatorio (2-100 caracteres)
-- ✅ Email único y válido
+- ✅ Nombre obligatorio (3-100 caracteres)
+- ✅ Email válido (opcional)
+- ✅ Teléfono mínimo 7 dígitos (opcional)
 - ✅ Especialidad obligatoria
-- ✅ Licencia médica obligatoria y única
+- ✅ Licencia médica única
 - ✅ Máximo de pacientes > 0
 
 ### Validaciones de Pacientes

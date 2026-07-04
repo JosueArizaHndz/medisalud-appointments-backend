@@ -5,6 +5,9 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import com.medisalud.appointments.domain.enums.AppointmentStatus;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -32,8 +35,8 @@ public class Appointment {
     @NotNull(message = "La fecha es obligatoria")
     private LocalDateTime appointmentDate;
 
-    @NotBlank(message = "El estado es obligatorio")
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private AppointmentStatus status;
 
     private String notes;
 

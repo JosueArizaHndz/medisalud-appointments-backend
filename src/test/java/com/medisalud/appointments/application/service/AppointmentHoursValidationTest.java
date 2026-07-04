@@ -33,6 +33,9 @@ class AppointmentHoursValidationTest {
     @Autowired
     private PatientRepositoryPort patientRepositoryPort;
 
+    @Autowired
+    private AppointmentRepositoryPort appointmentRepositoryPort;
+
     private UUID doctorId;
     private UUID patientId;
 
@@ -60,6 +63,12 @@ class AppointmentHoursValidationTest {
         patientId = patient.getId();
     }
 
+    @Test
+    void testAppointmentHoursValidation() {
+        // Clean existing appointments to ensure clean test state
+        appointmentRepositoryPort.findAll().forEach(a -> appointmentRepositoryPort.deleteById(a.getId()));
+    }
+
     // Use a fixed Monday in the future to avoid day-of-week issues
     private LocalDateTime getMondayFuture(int hour, int minute) {
         return LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(hour, minute);
@@ -85,7 +94,7 @@ class AppointmentHoursValidationTest {
             patientId, doctorId, mondayMorning, "Morning appointment"
         );
         AppointmentResponse response = appointmentService.createAppointment(cmd);
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), response.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
     @Test
@@ -96,7 +105,7 @@ class AppointmentHoursValidationTest {
             patientId, doctorId, mondayAfternoon, "Afternoon appointment"
         );
         AppointmentResponse response = appointmentService.createAppointment(cmd);
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), response.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
     @Test
@@ -135,7 +144,7 @@ class AppointmentHoursValidationTest {
             patientId, doctorId, saturdayMorning, "Saturday morning appointment"
         );
         AppointmentResponse response = appointmentService.createAppointment(cmd);
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), response.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
     @Test
@@ -146,7 +155,7 @@ class AppointmentHoursValidationTest {
             patientId, doctorId, saturdayLate, "Saturday late morning appointment"
         );
         AppointmentResponse response = appointmentService.createAppointment(cmd);
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), response.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
     @Test
@@ -222,7 +231,7 @@ class AppointmentHoursValidationTest {
                 patientId, doctorId, time, "Valid interval appointment"
             );
             AppointmentResponse response = appointmentService.createAppointment(cmd);
-            assertEquals(AppointmentStatus.PROGRAMADA.name(), response.status(),
+            assertEquals(AppointmentStatus.PROGRAMADA, response.status(),
                 "Time " + time + " should be valid");
         }
     }
@@ -235,6 +244,6 @@ class AppointmentHoursValidationTest {
             patientId, doctorId, fridayLast, "Friday last slot"
         );
         AppointmentResponse response = appointmentService.createAppointment(cmd);
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), response.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 }

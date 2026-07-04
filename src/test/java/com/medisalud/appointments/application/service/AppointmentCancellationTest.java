@@ -51,6 +51,9 @@ class AppointmentCancellationTest {
 
     @BeforeEach
     void setUp() {
+        // Clean existing appointments to ensure clean test state
+        appointmentRepositoryPort.findAll().forEach(a -> appointmentRepositoryPort.deleteById(a.getId()));
+
         // Create test doctor
         Doctor doctor = Doctor.builder()
                 .name("Dr. Test Doctor")
@@ -100,7 +103,7 @@ class AppointmentCancellationTest {
                 new CancelAppointmentCommand(appointment.id()));
 
         // Verify appointment is cancelled
-        assertEquals(AppointmentStatus.CANCELADA.name(), response.status());
+        assertEquals(AppointmentStatus.CANCELADA, response.status());
         assertNotNull(response.cancellationDate(), "La fecha de cancelación debe estar presente");
 
         // Verify penalty was created
@@ -112,13 +115,12 @@ class AppointmentCancellationTest {
     @Test
     void testCancelAppointmentWithoutPenalty_GreaterThan2Hours() {
         // Create an appointment in 3 hours (should NOT generate penalty)
-        // Use a time slot that is within 30-minute intervals
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime appointmentTime = now.withMinute(0).withSecond(0).withNano(0).plusHours(3);
+        // Use a future Monday to avoid day-of-week validation issues
+        LocalDateTime futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(14, 30);
 
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, appointmentTime, "Test notes"));
+                        patientId, doctorId, futureMonday, "Test notes"));
 
         // Get initial penalty count
         List<Penalty> initialPenalties = penaltyRepositoryPort.findByPatientId(patientId);
@@ -129,7 +131,7 @@ class AppointmentCancellationTest {
                 new CancelAppointmentCommand(appointment.id()));
 
         // Verify appointment is cancelled
-        assertEquals(AppointmentStatus.CANCELADA.name(), response.status());
+        assertEquals(AppointmentStatus.CANCELADA, response.status());
         assertNotNull(response.cancellationDate(), "La fecha de cancelación debe estar presente");
 
         // Verify NO penalty was created
@@ -157,7 +159,7 @@ class AppointmentCancellationTest {
         // First cancellation should succeed
         AppointmentResponse response1 = appointmentService.cancelAppointment(
                 new CancelAppointmentCommand(appointment.id()));
-        assertEquals(AppointmentStatus.CANCELADA.name(), response1.status());
+        assertEquals(AppointmentStatus.CANCELADA, response1.status());
 
         // Second cancellation should fail
         assertThrows(IllegalStateException.class, () -> {
@@ -174,7 +176,7 @@ class AppointmentCancellationTest {
 
         // Set status to FINALIZADA
         com.medisalud.appointments.domain.model.Appointment appt = appointmentRepositoryPort.findById(appointment.id()).orElse(null);
-        appt.setStatus(AppointmentStatus.FINALIZADA.name());
+        appt.setStatus(AppointmentStatus.FINALIZADA);
         appointmentRepositoryPort.save(appt);
 
         // Cannot cancel finalized appointment
@@ -225,7 +227,7 @@ class AppointmentCancellationTest {
         AppointmentResponse response = appointmentService.cancelAppointment(
                 new CancelAppointmentCommand(appointment.id()));
 
-        assertEquals(AppointmentStatus.CANCELADA.name(), response.status());
+        assertEquals(AppointmentStatus.CANCELADA, response.status());
         assertNotNull(response.cancellationDate());
     }
 
@@ -241,13 +243,12 @@ class AppointmentCancellationTest {
 
     @Test
     void testCancellationDateIsRecorded() {
-        // Create an appointment with more than 2 hours
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime appointmentTime = now.withMinute(0).withSecond(0).withNano(0).plusHours(5);
+        // Create an appointment with more than 2 hours using a future Monday
+        LocalDateTime futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(15, 0);
 
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, appointmentTime, "Test notes"));
+                        patientId, doctorId, futureMonday, "Test notes"));
 
         // Get original appointment
         com.medisalud.appointments.domain.model.Appointment original = appointmentRepositoryPort.findById(appointment.id()).orElse(null);
@@ -258,9 +259,8 @@ class AppointmentCancellationTest {
 
         // Verify cancellation date is recorded
         com.medisalud.appointments.domain.model.Appointment cancelled = appointmentRepositoryPort.findById(appointment.id()).orElse(null);
-        assertNotNull(cancelled.getCancellationDate(), "Debe registrarse la fecha de cancelación");
-        assertNotNull(cancelled.getStatus());
-        assertEquals(AppointmentStatus.CANCELADA.name(), cancelled.getStatus());
+        assertNotNull(cancelled.getCancellationDate(), "La fecha de cancelación debe estar presente");
+        assertEquals(AppointmentStatus.CANCELADA, cancelled.getStatus(), "La cita debe estar cancelada");
     }
 
     @Test

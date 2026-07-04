@@ -15,8 +15,12 @@ public record UpdateDoctorCommand(
     @Schema(description = "Email de contacto", example = "maria.gonzalez@medisalud.com")
     String email,
 
+    @Schema(description = "Teléfono de contacto", example = "555-1001")
+    @Pattern(regexp = "^\\d{7,}$", message = "El teléfono debe tener mínimo 7 dígitos")
+    String phone,
+
     @NotBlank(message = "La especialidad es obligatoria")
-    @Schema(description = "Especialidad médica", example = "CARDIOLOGIA")
+    @Schema(description = "Especialidad médica", example = "Cardiología")
     String specialty,
 
     @Schema(description = "Número de licencia médica", example = "MED-001")

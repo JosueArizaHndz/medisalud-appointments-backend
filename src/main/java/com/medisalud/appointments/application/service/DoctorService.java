@@ -27,7 +27,7 @@ public class DoctorService implements DoctorServiceInterface, DoctorQueryPort {
     public Doctor getDoctorById(UUID id) {
         return doctorRepositoryPort.findById(id)
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Doctor not found with id: " + id));
+                        "Médico no encontrado con id: " + id));
     }
 
     @Override
@@ -39,7 +39,7 @@ public class DoctorService implements DoctorServiceInterface, DoctorQueryPort {
     public Doctor getDoctorByEmail(String email) {
         return doctorRepositoryPort.findByEmail(email)
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Doctor not found with email: " + email));
+                        "Médico no encontrado con email: " + email));
     }
 
     @Transactional
@@ -52,6 +52,7 @@ public class DoctorService implements DoctorServiceInterface, DoctorQueryPort {
                 .name(command.name())
                 .email(command.email())
                 .specialty(command.specialty())
+                .phone(command.phone())
                 .licenseNumber(command.licenseNumber())
                 .maxPatients(command.maxPatients() != null ? command.maxPatients() : 20)
                 .active(true)
@@ -68,6 +69,7 @@ public class DoctorService implements DoctorServiceInterface, DoctorQueryPort {
         doctor.setName(command.name());
         doctor.setEmail(command.email());
         doctor.setSpecialty(command.specialty());
+        doctor.setPhone(command.phone());
         doctor.setLicenseNumber(command.licenseNumber());
         doctor.setMaxPatients(command.maxPatients());
 
@@ -79,7 +81,7 @@ public class DoctorService implements DoctorServiceInterface, DoctorQueryPort {
     public void deleteDoctor(DeleteDoctorCommand command) {
         if (!doctorRepositoryPort.existsById(command.id())) {
             throw new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                    "Doctor not found with id: " + command.id());
+                    "Médico no encontrado con id: " + command.id());
         }
         doctorRepositoryPort.deleteById(command.id());
     }
@@ -90,6 +92,7 @@ public class DoctorService implements DoctorServiceInterface, DoctorQueryPort {
                 doctor.getName(),
                 doctor.getEmail(),
                 doctor.getSpecialty(),
+                doctor.getPhone(),
                 doctor.getLicenseNumber(),
                 doctor.getMaxPatients(),
                 doctor.getActive(),

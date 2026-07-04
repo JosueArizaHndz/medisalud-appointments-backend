@@ -1,5 +1,6 @@
 package com.medisalud.appointments.application.dto;
 
+import com.medisalud.appointments.domain.enums.AppointmentStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,7 +12,7 @@ public record AppointmentResponse(
     String doctorName,
     String doctorSpecialty,
     LocalDateTime appointmentDate,
-    String status,
+    AppointmentStatus status,
     String notes,
     LocalDateTime cancellationDate,
     LocalDateTime createdAt,

@@ -10,14 +10,17 @@ public record CreateDoctorCommand(
     @Schema(description = "Nombre completo del médico", example = "Dra. María González", minLength = 3, maxLength = 100)
     String name,
 
-    @NotBlank(message = "El email es obligatorio")
-    @Email(message = "El email debe ser válido")
     @Schema(description = "Email de contacto", example = "maria.gonzalez@medisalud.com")
+    @Email(message = "El email debe tener un formato válido")
     String email,
 
     @NotBlank(message = "La especialidad es obligatoria")
-    @Schema(description = "Especialidad médica", example = "CARDIOLOGIA")
+    @Schema(description = "Especialidad médica", example = "Cardiología")
     String specialty,
+
+    @Schema(description = "Teléfono de contacto", example = "555-1001")
+    @Pattern(regexp = "^\\d{7,}$", message = "El teléfono debe tener mínimo 7 dígitos")
+    String phone,
 
     @Schema(description = "Número de licencia médica", example = "MED-001")
     String licenseNumber,

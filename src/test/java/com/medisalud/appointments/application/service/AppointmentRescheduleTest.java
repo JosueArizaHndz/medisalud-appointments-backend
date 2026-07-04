@@ -52,6 +52,9 @@ class AppointmentRescheduleTest {
 
     @BeforeEach
     void setUp() {
+        // Clean existing appointments to ensure clean test state
+        appointmentRepositoryPort.findAll().forEach(a -> appointmentRepositoryPort.deleteById(a.getId()));
+
         // Create test doctor
         Doctor doctor = Doctor.builder()
                 .name("Dr. Test Doctor Reschedule")
@@ -89,14 +92,14 @@ class AppointmentRescheduleTest {
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
                         patientId, doctorId, futureMonday, "Original appointment"));
 
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), original.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, original.status());
 
         // Reschedule to a different time
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
                 new RescheduleAppointmentCommand(original.id(), futureMonday2));
 
         // Verify new appointment
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), rescheduled.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, rescheduled.status());
         assertEquals(futureMonday2, rescheduled.appointmentDate());
         assertEquals(patientId, rescheduled.patientId());
         assertEquals(doctorId, rescheduled.doctorId());
@@ -104,7 +107,7 @@ class AppointmentRescheduleTest {
         // Verify original appointment was cancelled
         Appointment originalAfter = appointmentRepositoryPort.findById(original.id()).orElse(null);
         assertNotNull(originalAfter);
-        assertEquals(AppointmentStatus.CANCELADA.name(), originalAfter.getStatus());
+        assertEquals(AppointmentStatus.CANCELADA, originalAfter.getStatus());
         assertNotNull(originalAfter.getCancellationDate());
     }
 
@@ -143,7 +146,7 @@ class AppointmentRescheduleTest {
 
         // Set status to FINALIZADA
         Appointment appt = appointmentRepositoryPort.findById(original.id()).orElse(null);
-        appt.setStatus(AppointmentStatus.FINALIZADA.name());
+        appt.setStatus(AppointmentStatus.FINALIZADA);
         appointmentRepositoryPort.save(appt);
 
         // Cannot reschedule a finalized appointment
@@ -258,34 +261,32 @@ class AppointmentRescheduleTest {
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
                 new RescheduleAppointmentCommand(original.id(), farFuture));
 
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), rescheduled.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, rescheduled.status());
         assertEquals(farFuture, rescheduled.appointmentDate());
     }
 
     @Test
     void testRescheduleWithoutPenalty_GreaterThan2Hours() {
-        // Create appointment in 5 hours
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime appointmentTime = now.withMinute(0).withSecond(0).withNano(0).plusHours(5);
+        // Create appointment in 5 hours using a future Monday to avoid day-of-week validation
+        LocalDateTime futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(10, 0);
+        LocalDateTime futureMondayReschedule = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(14, 0);
 
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, appointmentTime, "Test no penalty reschedule"));
+                        patientId, doctorId, futureMonday, "Test no penalty reschedule"));
 
         // Get initial penalty count
         List<Penalty> initialPenalties = penaltyRepositoryPort.findByPatientId(patientId);
         int initialPenaltyCount = initialPenalties.size();
 
-        // Reschedule to 6 hours from now (should NOT generate penalty)
-        LocalDateTime newTime = now.withMinute(0).withSecond(0).withNano(0).plusHours(6);
-
+        // Reschedule to same day different time (should NOT generate penalty)
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
-                new RescheduleAppointmentCommand(original.id(), newTime));
+                new RescheduleAppointmentCommand(original.id(), futureMondayReschedule));
 
         // Verify NO penalty was created
         List<Penalty> penalties = penaltyRepositoryPort.findByPatientId(patientId);
         assertEquals(initialPenaltyCount, penalties.size(), "No debe crearse penalización");
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), rescheduled.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, rescheduled.status());
     }
 
     @Test
@@ -316,7 +317,7 @@ class AppointmentRescheduleTest {
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
                 new RescheduleAppointmentCommand(original.id(), saturdayTime));
 
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), rescheduled.status());
+        assertEquals(AppointmentStatus.PROGRAMADA, rescheduled.status());
         assertEquals(saturdayTime, rescheduled.appointmentDate());
     }
 
@@ -373,6 +374,6 @@ class AppointmentRescheduleTest {
         // Verify original appointment was NOT modified (transaction rollback)
         Appointment originalAfter = appointmentRepositoryPort.findById(original.id()).orElse(null);
         assertNull(originalAfter.getCancellationDate(), "Original no debe tener cancellationDate después de rollback");
-        assertEquals(AppointmentStatus.PROGRAMADA.name(), originalAfter.getStatus(), "Original debe mantener status PROGRAMADA después de rollback");
+        assertEquals(AppointmentStatus.PROGRAMADA, originalAfter.getStatus(), "Original debe mantener status PROGRAMADA después de rollback");
     }
 }

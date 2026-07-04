@@ -27,14 +27,14 @@ public class PatientService implements PatientServiceInterface, PatientQueryPort
     public Patient getPatientById(UUID id) {
         return patientRepositoryPort.findById(id)
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Patient not found with id: " + id));
+                        "Paciente no encontrado con id: " + id));
     }
 
     @Override
     public Patient getPatientByIdentityDocument(String identityDocument) {
         return patientRepositoryPort.findByIdentityDocument(identityDocument)
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Patient not found with identity document: " + identityDocument));
+                        "Paciente no encontrado con documento: " + identityDocument));
     }
 
     @Override
@@ -88,7 +88,7 @@ public class PatientService implements PatientServiceInterface, PatientQueryPort
     public void deletePatient(DeletePatientCommand command) {
         if (!patientRepositoryPort.existsById(command.id())) {
             throw new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                    "Patient not found with id: " + command.id());
+                    "Paciente no encontrado con id: " + command.id());
         }
         patientRepositoryPort.deleteById(command.id());
     }

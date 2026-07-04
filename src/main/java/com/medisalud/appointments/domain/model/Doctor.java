@@ -23,16 +23,16 @@ public class Doctor {
     private UUID id;
 
     @NotBlank(message = "El nombre es obligatorio")
-    @Size(max = 100)
+    @Size(min = 3, max = 100, message = "El nombre debe tener entre 3 y 100 caracteres")
     private String name;
 
-    @NotBlank(message = "El email es obligatorio")
-    @Email(message = "El email debe ser válido")
-    @Column(unique = true)
     private String email;
 
     @NotBlank(message = "La especialidad es obligatoria")
     private String specialty;
+
+    @Pattern(regexp = "^\\d{7,}$", message = "El teléfono debe tener mínimo 7 dígitos")
+    private String phone;
 
     @Column(unique = true)
     private String licenseNumber;

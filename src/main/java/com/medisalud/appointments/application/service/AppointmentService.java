@@ -42,7 +42,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
     public Appointment getAppointmentById(UUID id) {
         return appointmentRepositoryPort.findById(id)
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Appointment not found with id: " + id));
+                        "Cita no encontrada con id: " + id));
     }
 
     @Override
@@ -67,12 +67,17 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         // Validate patient exists
         Patient patient = patientRepositoryPort.findById(command.patientId())
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Patient not found with id: " + command.patientId()));
+                        "Paciente no encontrado con id: " + command.patientId()));
+
+        // RN-03: Validate patient age (no future birth dates)
+        if (patient.getBirthDate() != null && patient.getBirthDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha de nacimiento no puede ser futura");
+        }
 
         // Validate doctor exists
         Doctor doctor = doctorRepositoryPort.findById(command.doctorId())
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Doctor not found with id: " + command.doctorId()));
+                        "Médico no encontrado con id: " + command.doctorId()));
 
         // Check if patient is blocked due to penalties (RN-05)
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
@@ -98,7 +103,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         // Check doctor conflict (30-minute intervals)
         for (Appointment appt : allAppointments) {
             if (appt.getDoctorId().equals(command.doctorId()) &&
-                    !AppointmentStatus.CANCELADA.name().equals(appt.getStatus())) {
+                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
                 // Check if time slots overlap (within 30 minutes of each other)
                 long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.appointmentDate()).toMinutes();
                 if (Math.abs(minutesDiff) < 30) {
@@ -108,15 +113,17 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
             }
         }
 
-        // Check patient conflict (30-minute intervals)
+        // RN-04: Check patient conflict with the SAME doctor (30-minute intervals)
+        // A patient cannot have two appointments with the SAME doctor in the same time slot
         for (Appointment appt : allAppointments) {
             if (appt.getPatientId().equals(command.patientId()) &&
-                    !AppointmentStatus.CANCELADA.name().equals(appt.getStatus())) {
+                    appt.getDoctorId().equals(command.doctorId()) &&
+                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
                 // Check if time slots overlap (within 30 minutes of each other)
                 long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.appointmentDate()).toMinutes();
                 if (Math.abs(minutesDiff) < 30) {
                     throw new IllegalStateException(
-                            "El paciente ya tiene una cita en el horario seleccionado");
+                            "El paciente ya tiene una cita con este médico en el horario seleccionado");
                 }
             }
         }
@@ -125,7 +132,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
                 .patientId(command.patientId())
                 .doctorId(command.doctorId())
                 .appointmentDate(command.appointmentDate())
-                .status(AppointmentStatus.PROGRAMADA.name())
+                .status(AppointmentStatus.PROGRAMADA)
                 .notes(command.notes())
                 .build();
 
@@ -138,11 +145,11 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         Appointment appointment = getAppointmentById(command.id());
 
         // Validate appointment can be cancelled
-        if (AppointmentStatus.CANCELADA.name().equals(appointment.getStatus())) {
+        if (AppointmentStatus.CANCELADA.equals(appointment.getStatus())) {
             throw new IllegalStateException("La cita ya se encuentra cancelada");
         }
         
-        if (AppointmentStatus.FINALIZADA.name().equals(appointment.getStatus())) {
+        if (AppointmentStatus.FINALIZADA.equals(appointment.getStatus())) {
             throw new IllegalStateException("No se puede cancelar una cita finalizada");
         }
 
@@ -164,7 +171,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
             penaltyRepositoryPort.save(penalty);
         }
 
-        appointment.setStatus(AppointmentStatus.CANCELADA.name());
+        appointment.setStatus(AppointmentStatus.CANCELADA);
         Appointment updated = appointmentRepositoryPort.save(appointment);
 
         return mapToResponse(updated);
@@ -176,12 +183,12 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         Appointment existingAppointment = getAppointmentById(command.id());
 
         // Cannot reschedule cancelled appointments
-        if (AppointmentStatus.CANCELADA.name().equals(existingAppointment.getStatus())) {
+        if (AppointmentStatus.CANCELADA.equals(existingAppointment.getStatus())) {
             throw new IllegalStateException("No se puede reprogramar una cita cancelada");
         }
 
         // Cannot reschedule finalized appointments
-        if (AppointmentStatus.FINALIZADA.name().equals(existingAppointment.getStatus())) {
+        if (AppointmentStatus.FINALIZADA.equals(existingAppointment.getStatus())) {
             throw new IllegalStateException("No se puede reprogramar una cita finalizada");
         }
 
@@ -201,7 +208,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         // Check doctor conflict (30-minute intervals)
         for (Appointment appt : allAppointments) {
             if (appt.getDoctorId().equals(existingAppointment.getDoctorId()) &&
-                    !AppointmentStatus.CANCELADA.name().equals(appt.getStatus())) {
+                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
                 long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.newAppointmentDate()).toMinutes();
                 if (Math.abs(minutesDiff) < 30) {
                     throw new IllegalStateException(
@@ -210,14 +217,16 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
             }
         }
 
-        // Check patient conflict (30-minute intervals)
+        // RN-04: Check patient conflict with the SAME doctor (30-minute intervals)
+        // A patient cannot have two appointments with the SAME doctor in the same time slot
         for (Appointment appt : allAppointments) {
             if (appt.getPatientId().equals(existingAppointment.getPatientId()) &&
-                    !AppointmentStatus.CANCELADA.name().equals(appt.getStatus())) {
+                    appt.getDoctorId().equals(existingAppointment.getDoctorId()) &&
+                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
                 long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.newAppointmentDate()).toMinutes();
                 if (Math.abs(minutesDiff) < 30) {
                     throw new IllegalStateException(
-                            "El paciente ya tiene una cita en el horario seleccionado");
+                            "El paciente ya tiene una cita con este médico en el horario seleccionado");
                 }
             }
         }
@@ -245,7 +254,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
             penaltyRepositoryPort.save(penalty);
         }
 
-        existingAppointment.setStatus(AppointmentStatus.CANCELADA.name());
+        existingAppointment.setStatus(AppointmentStatus.CANCELADA);
         appointmentRepositoryPort.save(existingAppointment);
 
         // Create new appointment
@@ -253,12 +262,32 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
                 .patientId(existingAppointment.getPatientId())
                 .doctorId(existingAppointment.getDoctorId())
                 .appointmentDate(command.newAppointmentDate())
-                .status(AppointmentStatus.PROGRAMADA.name())
+                .status(AppointmentStatus.PROGRAMADA)
                 .notes(existingAppointment.getNotes())
                 .build();
 
         Appointment saved = appointmentRepositoryPort.save(newAppointment);
         return mapToResponse(saved);
+    }
+
+    @Transactional
+    public AppointmentResponse updateStatus(UpdateAppointmentStatusCommand command) {
+        Appointment appointment = getAppointmentById(command.id());
+
+        // Cannot update cancelled appointments
+        if (AppointmentStatus.CANCELADA.equals(appointment.getStatus())) {
+            throw new IllegalStateException("No se puede actualizar una cita cancelada");
+        }
+
+        // Cannot update finalized appointments
+        if (AppointmentStatus.FINALIZADA.equals(appointment.getStatus())) {
+            throw new IllegalStateException("No se puede actualizar una cita finalizada");
+        }
+
+        appointment.setStatus(command.status());
+        Appointment updated = appointmentRepositoryPort.save(appointment);
+
+        return mapToResponse(updated);
     }
 
     private void validateAppointmentHours(LocalDateTime appointmentDate) {
@@ -296,7 +325,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         // Validate doctor exists
         Doctor doctor = doctorRepositoryPort.findById(query.doctorId())
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Doctor not found with id: " + query.doctorId()));
+                        "Médico no encontrado con id: " + query.doctorId()));
 
         List<AvailableSlot> availableSlots = new java.util.ArrayList<>();
 
@@ -335,7 +364,7 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
                     boolean isBooked = false;
                     for (Appointment appt : existingAppointments) {
                         if (appt.getDoctorId().equals(query.doctorId()) &&
-                                !AppointmentStatus.CANCELADA.name().equals(appt.getStatus())) {
+                                !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
                             isBooked = true;
                             break;
                         }
@@ -358,10 +387,21 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
 
     @Override
     public List<AppointmentResponse> listAppointments(ListAppointmentsQuery query) {
+        // Convert String status to enum for JPA query
+        AppointmentStatus statusEnum = null;
+        if (query.status() != null && !query.status().isEmpty()) {
+            try {
+                statusEnum = AppointmentStatus.valueOf(query.status().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Invalid status - return empty list
+                return List.of();
+            }
+        }
+        
         List<Appointment> appointments = appointmentRepositoryPort.findByFilters(
                 query.doctorId(),
                 query.patientId(),
-                query.status(),
+                statusEnum,
                 query.startDate(),
                 query.endDate());
         
