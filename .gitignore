@@ -53,3 +53,7 @@ out/
 .ceiba-metodo/
 
 data/
+
+# Archivos locales de documentación (no subir a GitHub)
+IMPLEMENTATION.md
+VERIFICATION-EXHAUSTIVE.md

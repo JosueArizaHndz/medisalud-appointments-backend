@@ -52,7 +52,7 @@ public class AppointmentController {
             @Parameter(description = "Fecha/hora fin del rango")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         
-        // Use JPQL filtering instead of in-memory streaming for better performance
+        // Usar filtrado JPQL en lugar de streaming en memoria para mejor rendimiento
         List<AppointmentResponse> responses = appointmentService.listAppointments(
                 new com.medisalud.appointments.domain.port.in.ListAppointmentsQuery(
                         doctorId, patientId, status, startDate, endDate));
