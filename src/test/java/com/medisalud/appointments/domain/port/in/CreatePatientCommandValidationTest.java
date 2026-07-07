@@ -20,6 +20,10 @@ class CreatePatientCommandValidationTest {
         this.validator = factory.getValidator();
     }
 
+    /**
+     * Verifica que un CreatePatientCommand con todos los campos válidos
+     * pase la validación sin generar errores.
+     */
     @Test
     void validCreatePatientCommand_shouldPassValidation() {
         CreatePatientCommand command = new CreatePatientCommand(
@@ -35,6 +39,9 @@ class CreatePatientCommandValidationTest {
         assertTrue(violations.isEmpty(), "No debería haber violaciones de validación");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el nombre del paciente está en blanco.
+     */
     @Test
     void blankName_shouldFailValidation() {
         CreatePatientCommand command = new CreatePatientCommand(
@@ -53,6 +60,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(nameViolations > 0, "Nombre en blanco debería fallar");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el nombre del paciente
+     * tiene menos de 3 caracteres.
+     */
     @Test
     void shortName_shouldFailValidation() {
         CreatePatientCommand command = new CreatePatientCommand(
@@ -71,6 +82,9 @@ class CreatePatientCommandValidationTest {
         assertTrue(nameViolations > 0, "Nombre menor a 3 caracteres debería fallar");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el documento de identidad está en blanco.
+     */
     @Test
     void blankIdentityDocument_shouldFailValidation() {
         CreatePatientCommand command = new CreatePatientCommand(
@@ -89,6 +103,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(docViolations > 0, "Documento en blanco debería fallar");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el email
+     * tiene un formato inválido.
+     */
     @Test
     void invalidEmail_shouldFailValidation() {
         CreatePatientCommand command = new CreatePatientCommand(
@@ -107,6 +125,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(emailViolations > 0, "Email inválido debería fallar");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el email está en blanco
+     * (email es obligatorio para pacientes).
+     */
     @Test
     void blankEmail_shouldFailValidation() {
         // Email es obligatorio en pacientes
@@ -126,6 +148,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(emailViolations > 0, "Email en blanco debería fallar (es obligatorio)");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el email es nulo
+     * (email es obligatorio para pacientes).
+     */
     @Test
     void nullEmail_shouldFailValidation() {
         // Email es obligatorio en pacientes
@@ -145,6 +171,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(emailViolations > 0, "Email nulo debería fallar (es obligatorio)");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el teléfono está en blanco
+     * (teléfono es obligatorio para pacientes).
+     */
     @Test
     void blankPhone_shouldFailValidation() {
         // Teléfono es obligatorio en pacientes
@@ -164,6 +194,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(phoneViolations > 0, "Teléfono en blanco debería fallar (es obligatorio)");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el teléfono es nulo
+     * (teléfono es obligatorio para pacientes).
+     */
     @Test
     void nullPhone_shouldFailValidation() {
         // Teléfono es obligatorio en pacientes
@@ -183,6 +217,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(phoneViolations > 0, "Teléfono nulo debería fallar (es obligatorio)");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand falle la validación cuando el teléfono
+     * tiene menos de 7 dígitos.
+     */
     @Test
     void shortPhone_shouldFailValidation() {
         // Teléfono con menos de 7 dígitos debe fallar
@@ -202,6 +240,10 @@ class CreatePatientCommandValidationTest {
         assertTrue(phoneViolations > 0, "Teléfono con menos de 7 dígitos debería fallar");
     }
 
+    /**
+     * Verifica que un CreatePatientCommand pase la validación cuando el teléfono
+     * tiene exactamente 7 dígitos.
+     */
     @Test
     void valid7DigitPhone_shouldPassValidation() {
         // Teléfono con exactamente 7 dígitos debe pasar

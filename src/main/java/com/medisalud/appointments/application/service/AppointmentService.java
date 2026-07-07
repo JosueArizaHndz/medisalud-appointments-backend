@@ -6,7 +6,6 @@ import com.medisalud.appointments.domain.enums.AppointmentStatus;
 import com.medisalud.appointments.domain.model.Appointment;
 import com.medisalud.appointments.domain.model.Doctor;
 import com.medisalud.appointments.domain.model.Patient;
-import com.medisalud.appointments.domain.model.Penalty;
 import com.medisalud.appointments.domain.port.in.*;
 import com.medisalud.appointments.domain.port.out.AppointmentRepositoryPort;
 import com.medisalud.appointments.domain.port.out.DoctorRepositoryPort;
@@ -18,11 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Servicio principal orquestador para la gestión de citas médicas.
+ * Delega la lógica específica a servicios especializados:
+ * - AppointmentConflictValidator: validación de conflictos
+ * - AppointmentPenaltyService: lógica de penalizaciones
+ * - AppointmentAvailabilityService: validación de horarios y disponibilidad
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -32,6 +36,12 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
     private final DoctorRepositoryPort doctorRepositoryPort;
     private final PatientRepositoryPort patientRepositoryPort;
     private final PenaltyRepositoryPort penaltyRepositoryPort;
+
+    private final AppointmentConflictValidator conflictValidator;
+    private final AppointmentPenaltyService penaltyService;
+    private final AppointmentAvailabilityService availabilityService;
+
+    // ==================== Consultas básicas ====================
 
     @Override
     public List<Appointment> getAllAppointments() {
@@ -62,9 +72,12 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         return appointmentRepositoryPort.findByAppointmentDateBetween(start, end);
     }
 
+    // ==================== Creación de citas ====================
+
     @Transactional
+    @Override
     public AppointmentResponse createAppointment(CreateAppointmentCommand command) {
-        // Validar que el paciente exista
+        // 1. Validar que el paciente exista
         Patient patient = patientRepositoryPort.findById(command.patientId())
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
                         "Paciente no encontrado con id: " + command.patientId()));
@@ -74,60 +87,31 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
             throw new IllegalArgumentException("La fecha de nacimiento no puede ser futura");
         }
 
-        // Validar que el médico exista
+        // 2. Validar que el médico exista
         Doctor doctor = doctorRepositoryPort.findById(command.doctorId())
                 .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
                         "Médico no encontrado con id: " + command.doctorId()));
 
-        // Verificar si el paciente está bloqueado por penalizaciones (RN-05)
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        long recentPenalties = penaltyRepositoryPort.countByPatientIdAndCreatedAtAfter(command.patientId(), thirtyDaysAgo);
-        if (recentPenalties >= 3) {
+        // 3. Verificar si el paciente está bloqueado por penalizaciones (RN-05)
+        if (penaltyService.isPatientBlocked(command.patientId())) {
+            long recentPenalties = penaltyService.countRecentPenalties(command.patientId());
             throw new IllegalStateException(
                     "El paciente tiene " + recentPenalties + " penalizaciones en los últimos 30 días y no puede agendar nuevas citas");
         }
 
-        // Verificar que la fecha no sea pasada
+        // 4. Verificar que la fecha no sea pasada
         if (command.appointmentDate().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("La fecha de la cita no puede ser pasada");
         }
 
-        // Validar horarios de la cita
-        validateAppointmentHours(command.appointmentDate());
+        // 5. Validar horarios (delegate)
+        availabilityService.validateAppointmentHours(command.appointmentDate());
 
-        // Obtener todas las citas no canceladas para verificar conflictos
-        LocalDateTime dayStart = command.appointmentDate().withHour(0).withMinute(0).withSecond(0);
-        LocalDateTime dayEnd = command.appointmentDate().withHour(23).withMinute(59).withSecond(59);
-        List<Appointment> allAppointments = appointmentRepositoryPort.findByAppointmentDateBetween(dayStart, dayEnd);
+        // 6. Validar conflictos (delegate)
+        conflictValidator.validateDoctorConflict(command.doctorId(), command.appointmentDate(), null);
+        conflictValidator.validatePatientDoctorConflict(command.patientId(), command.doctorId(), command.appointmentDate(), null);
 
-        // Verificar conflicto del médico (intervalos de 30 minutos)
-        for (Appointment appt : allAppointments) {
-            if (appt.getDoctorId().equals(command.doctorId()) &&
-                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
-                // Verificar si los horarios se superponen (dentro de 30 minutos)
-                long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.appointmentDate()).toMinutes();
-                if (Math.abs(minutesDiff) < 30) {
-                    throw new IllegalStateException(
-                            "El médico ya tiene una cita en el horario seleccionado");
-                }
-            }
-        }
-
-        // RN-04: Verificar conflicto del paciente con el MISMO médico (intervalos de 30 minutos)
-        // Un paciente no puede tener dos citas con el mismo médico en el mismo horario
-        for (Appointment appt : allAppointments) {
-            if (appt.getPatientId().equals(command.patientId()) &&
-                    appt.getDoctorId().equals(command.doctorId()) &&
-                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
-                // Verificar si los horarios se superponen (dentro de 30 minutos)
-                long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.appointmentDate()).toMinutes();
-                if (Math.abs(minutesDiff) < 30) {
-                    throw new IllegalStateException(
-                            "El paciente ya tiene una cita con este médico en el horario seleccionado");
-                }
-            }
-        }
-
+        // 7. Construir y guardar la cita
         Appointment appointment = Appointment.builder()
                 .patientId(command.patientId())
                 .doctorId(command.doctorId())
@@ -140,7 +124,10 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         return mapToResponse(saved);
     }
 
+    // ==================== Cancelación de citas ====================
+
     @Transactional
+    @Override
     public AppointmentResponse cancelAppointment(CancelAppointmentCommand command) {
         Appointment appointment = getAppointmentById(command.id());
 
@@ -148,28 +135,17 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         if (AppointmentStatus.CANCELADA.equals(appointment.getStatus())) {
             throw new IllegalStateException("La cita ya se encuentra cancelada");
         }
-        
+
         if (AppointmentStatus.FINALIZADA.equals(appointment.getStatus())) {
             throw new IllegalStateException("No se puede cancelar una cita finalizada");
         }
 
-        // Verificar si la cancelación es tardía (menos de 2 horas antes)
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime appointmentDateTime = appointment.getAppointmentDate();
-        long hoursUntilAppointment = java.time.Duration.between(now, appointmentDateTime).toHours();
-
         // Establecer fecha/hora de cancelación
-        appointment.setCancellationDate(now);
+        appointment.setCancellationDate(LocalDateTime.now());
 
-        // Crear penalización solo si la cancelación es con menos de 2 horas de anticipación
-        if (hoursUntilAppointment < 2) {
-            Penalty penalty = Penalty.builder()
-                    .patientId(appointment.getPatientId())
-                    .penaltyType("CANCELACION_TARDIA")
-                    .description("Cancelación con menos de 2 horas de anticipación. Cita programada para: " + appointmentDateTime)
-                    .build();
-            penaltyRepositoryPort.save(penalty);
-        }
+        // Delegar creación de penalización si aplica
+        String reason = "Cancelación con menos de 2 horas de anticipación. Cita programada para: " + appointment.getAppointmentDate();
+        penaltyService.createPenaltyIfLateCancellation(appointment, reason);
 
         appointment.setStatus(AppointmentStatus.CANCELADA);
         Appointment updated = appointmentRepositoryPort.save(appointment);
@@ -177,87 +153,61 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         return mapToResponse(updated);
     }
 
+    // ==================== Reprogramación de citas ====================
+
     @Transactional
+    @Override
     public AppointmentResponse rescheduleAppointment(RescheduleAppointmentCommand command) {
-        // Validar que la cita exista
+        // 1. Validar que la cita exista
         Appointment existingAppointment = getAppointmentById(command.id());
 
-        // No se puede reprogramar una cita cancelada
+        // No se puede reprogramar una cita cancelada o finalizada
         if (AppointmentStatus.CANCELADA.equals(existingAppointment.getStatus())) {
             throw new IllegalStateException("No se puede reprogramar una cita cancelada");
         }
 
-        // No se puede reprogramar una cita finalizada
         if (AppointmentStatus.FINALIZADA.equals(existingAppointment.getStatus())) {
             throw new IllegalStateException("No se puede reprogramar una cita finalizada");
         }
 
-        // Validar que la nueva fecha no sea pasada
+        // 2. Validar que la nueva fecha no sea pasada
         if (command.newAppointmentDate().isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("La nueva fecha de la cita no puede ser pasada");
         }
 
-        // Validar horarios de la cita (horario laboral, intervalos de 30 min, día de la semana)
-        validateAppointmentHours(command.newAppointmentDate());
+        // 3. Validar horarios (delegate)
+        availabilityService.validateAppointmentHours(command.newAppointmentDate());
 
-        // Verificar disponibilidad del médico en la nueva fecha
-        LocalDateTime dayStart = command.newAppointmentDate().withHour(0).withMinute(0).withSecond(0);
-        LocalDateTime dayEnd = command.newAppointmentDate().withHour(23).withMinute(59).withSecond(59);
-        List<Appointment> allAppointments = appointmentRepositoryPort.findByAppointmentDateBetween(dayStart, dayEnd);
+        // 4. Validar conflictos del médico (delegate)
+        // Nota: NO se excluye la cita existente para mantener compatibilidad con el comportamiento original
+        conflictValidator.validateDoctorConflict(
+                existingAppointment.getDoctorId(),
+                command.newAppointmentDate(),
+                null);
 
-        // Verificar conflicto del médico (intervalos de 30 minutos)
-        for (Appointment appt : allAppointments) {
-            if (appt.getDoctorId().equals(existingAppointment.getDoctorId()) &&
-                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
-                long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.newAppointmentDate()).toMinutes();
-                if (Math.abs(minutesDiff) < 30) {
-                    throw new IllegalStateException(
-                            "El médico ya tiene una cita en el horario seleccionado");
-                }
-            }
-        }
+        // 5. Validar conflictos del paciente+médico (delegate)
+        // Nota: NO se excluye la cita existente para mantener compatibilidad con el comportamiento original
+        conflictValidator.validatePatientDoctorConflict(
+                existingAppointment.getPatientId(),
+                existingAppointment.getDoctorId(),
+                command.newAppointmentDate(),
+                null);
 
-        // RN-04: Verificar conflicto del paciente con el MISMO médico (intervalos de 30 minutos)
-        // Un paciente no puede tener dos citas con el mismo médico en el mismo horario
-        for (Appointment appt : allAppointments) {
-            if (appt.getPatientId().equals(existingAppointment.getPatientId()) &&
-                    appt.getDoctorId().equals(existingAppointment.getDoctorId()) &&
-                    !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
-                long minutesDiff = java.time.Duration.between(appt.getAppointmentDate(), command.newAppointmentDate()).toMinutes();
-                if (Math.abs(minutesDiff) < 30) {
-                    throw new IllegalStateException(
-                            "El paciente ya tiene una cita con este médico en el horario seleccionado");
-                }
-            }
-        }
-
-        // Verificar que la nueva fecha no sea domingo
+        // 6. Verificar que la nueva fecha no sea domingo (ya validado por validateAppointmentHours, pero se mantiene para claridad)
         java.time.DayOfWeek dayOfWeek = command.newAppointmentDate().getDayOfWeek();
         if (dayOfWeek == java.time.DayOfWeek.SUNDAY) {
             throw new IllegalArgumentException("No es posible agendar citas los domingos");
         }
 
-        // Cancelar la cita anterior con lógica de penalización si aplica
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime oldAppointmentDate = existingAppointment.getAppointmentDate();
-        long hoursUntilOldAppointment = java.time.Duration.between(now, oldAppointmentDate).toHours();
-
-        existingAppointment.setCancellationDate(now);
-
-        // Crear penalización si la cancelación es con menos de 2 horas de anticipación
-        if (hoursUntilOldAppointment < 2) {
-            Penalty penalty = Penalty.builder()
-                    .patientId(existingAppointment.getPatientId())
-                    .penaltyType("CANCELACION_TARDIA")
-                    .description("Reprogramación con menos de 2 horas de anticipación. Cita original: " + oldAppointmentDate)
-                    .build();
-            penaltyRepositoryPort.save(penalty);
-        }
+        // 7. Cancelar la cita anterior con lógica de penalización si aplica
+        existingAppointment.setCancellationDate(LocalDateTime.now());
+        String reason = "Reprogramación con menos de 2 horas de anticipación. Cita original: " + existingAppointment.getAppointmentDate();
+        penaltyService.createPenaltyIfLateCancellation(existingAppointment, reason);
 
         existingAppointment.setStatus(AppointmentStatus.CANCELADA);
         appointmentRepositoryPort.save(existingAppointment);
 
-        // Crear nueva cita
+        // 8. Crear nueva cita
         Appointment newAppointment = Appointment.builder()
                 .patientId(existingAppointment.getPatientId())
                 .doctorId(existingAppointment.getDoctorId())
@@ -270,7 +220,10 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         return mapToResponse(saved);
     }
 
+    // ==================== Actualización de estado ====================
+
     @Transactional
+    @Override
     public AppointmentResponse updateStatus(UpdateAppointmentStatusCommand command) {
         Appointment appointment = getAppointmentById(command.id());
 
@@ -290,100 +243,14 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
         return mapToResponse(updated);
     }
 
-    private void validateAppointmentHours(LocalDateTime appointmentDate) {
-        java.time.DayOfWeek dayOfWeek = appointmentDate.getDayOfWeek();
-        int hour = appointmentDate.getHour();
-        int minute = appointmentDate.getMinute();
+    // ==================== Disponibilidad ====================
 
-        // Validar intervalos de 30 minutos
-        if (minute % 30 != 0) {
-            throw new IllegalArgumentException("La hora debe estar en intervalos de 30 minutos (ej: 08:00, 08:30, 09:00)");
-        }
-
-        // Domingo no permitido
-        if (dayOfWeek == java.time.DayOfWeek.SUNDAY) {
-            throw new IllegalArgumentException("No se pueden programar citas los domingos");
-        }
-
-        // Lunes a viernes: 08:00 a 18:00
-        if (dayOfWeek != java.time.DayOfWeek.SATURDAY && dayOfWeek != java.time.DayOfWeek.SUNDAY) {
-            if (hour < 8 || hour >= 18) {
-                throw new IllegalArgumentException("El horario de atención de lunes a viernes es de 08:00 a 18:00");
-            }
-            return;
-        }
-
-        // Sábado: 08:00 a 13:00
-        if (dayOfWeek == java.time.DayOfWeek.SATURDAY) {
-            if (hour < 8 || hour >= 13) {
-                throw new IllegalArgumentException("El horario de atención el sábado es de 08:00 a 13:00");
-            }
-        }
-    }
-
+    @Override
     public List<AvailableSlot> getAvailableSlots(AvailableSlotsQuery query) {
-        // Validar que el médico exista
-        Doctor doctor = doctorRepositoryPort.findById(query.doctorId())
-                .orElseThrow(() -> new com.medisalud.appointments.infrastructure.exception.ResourceNotFoundException(
-                        "Médico no encontrado con id: " + query.doctorId()));
-
-        List<AvailableSlot> availableSlots = new java.util.ArrayList<>();
-
-        // Iterar por cada día en el rango
-        for (LocalDate date = query.fechaInicio(); !date.isAfter(query.fechaFin()); date = date.plusDays(1)) {
-            java.time.DayOfWeek dayOfWeek = date.getDayOfWeek();
-
-            // Determinar horas de inicio y fin según el día de la semana
-            int startHour;
-            int endHour;
-
-            if (dayOfWeek == java.time.DayOfWeek.SATURDAY) {
-                startHour = 8;
-                endHour = 13;
-            } else if (dayOfWeek == java.time.DayOfWeek.SUNDAY) {
-                // Domingo: sin citas
-                continue;
-            } else {
-                // Lunes a viernes
-                startHour = 8;
-                endHour = 18;
-            }
-
-            // Generar intervalos de 30 minutos para este día
-            for (int hour = startHour; hour < endHour; hour++) {
-                for (int minute = 0; minute < 60; minute += 30) {
-                    LocalDateTime slotTime = date.atTime(hour, minute);
-
-                    // Verificar si este intervalo ya está reservado
-                    LocalDateTime slotStart = slotTime;
-                    LocalDateTime slotEnd = slotTime.plusMinutes(30);
-
-                    List<Appointment> existingAppointments =
-                            appointmentRepositoryPort.findByAppointmentDateBetween(slotStart, slotEnd);
-
-                    boolean isBooked = false;
-                    for (Appointment appt : existingAppointments) {
-                        if (appt.getDoctorId().equals(query.doctorId()) &&
-                                !AppointmentStatus.CANCELADA.equals(appt.getStatus())) {
-                            isBooked = true;
-                            break;
-                        }
-                    }
-
-                    if (!isBooked) {
-                        availableSlots.add(new AvailableSlot(
-                                slotTime,
-                                date,
-                                String.format("%02d:%02d", hour, minute),
-                                dayOfWeek.toString()
-                        ));
-                    }
-                }
-            }
-        }
-
-        return availableSlots;
+        return availabilityService.getAvailableSlots(query);
     }
+
+    // ==================== Listado con filtros ====================
 
     @Override
     public List<AppointmentResponse> listAppointments(ListAppointmentsQuery query) {
@@ -397,19 +264,22 @@ public class AppointmentService implements AppointmentServiceInterface, Appointm
                 return List.of();
             }
         }
-        
+
         List<Appointment> appointments = appointmentRepositoryPort.findByFilters(
                 query.doctorId(),
                 query.patientId(),
                 statusEnum,
                 query.startDate(),
                 query.endDate());
-        
+
         return appointments.stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
+    // ==================== Mapeo ====================
+
+    @Override
     public AppointmentResponse mapToResponse(Appointment appointment) {
         Doctor doctor = doctorRepositoryPort.findById(appointment.getDoctorId()).orElse(null);
         Patient patient = patientRepositoryPort.findById(appointment.getPatientId()).orElse(null);

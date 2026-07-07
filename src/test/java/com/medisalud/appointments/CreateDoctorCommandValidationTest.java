@@ -19,6 +19,10 @@ class CreateDoctorCommandValidationTest {
         this.validator = factory.getValidator();
     }
 
+    /**
+     * Verifica que un CreateDoctorCommand con todos los campos válidos
+     * pase la validación sin generar errores.
+     */
     @Test
     void shouldPassWhenAllFieldsAreValid() {
         CreateDoctorCommand command = new CreateDoctorCommand(
@@ -34,6 +38,9 @@ class CreateDoctorCommandValidationTest {
         assertTrue(violations.isEmpty(), "No debería haber violaciones de validación");
     }
 
+    /**
+     * Verifica que un CreateDoctorCommand falle la validación cuando el nombre del doctor está en blanco.
+     */
     @Test
     void shouldFailWhenNameIsBlank() {
         CreateDoctorCommand command = new CreateDoctorCommand(
@@ -52,6 +59,10 @@ class CreateDoctorCommandValidationTest {
         assertTrue(hasNameViolation, "Debe haber violación en el campo name");
     }
 
+    /**
+     * Verifica que un CreateDoctorCommand falle la validación cuando el nombre del doctor
+     * tiene menos de 3 caracteres.
+     */
     @Test
     void shouldFailWhenNameTooShort() {
         CreateDoctorCommand command = new CreateDoctorCommand(
@@ -70,6 +81,10 @@ class CreateDoctorCommandValidationTest {
         assertTrue(hasSizeViolation, "Debe haber violación de longitud mínima");
     }
 
+    /**
+     * Verifica que un CreateDoctorCommand falle la validación cuando el email
+     * tiene un formato inválido.
+     */
     @Test
     void shouldFailWhenEmailIsInvalid() {
         CreateDoctorCommand command = new CreateDoctorCommand(
@@ -88,6 +103,10 @@ class CreateDoctorCommandValidationTest {
         assertTrue(hasEmailViolation, "Debe haber violación en el campo email");
     }
 
+    /**
+     * Verifica que un CreateDoctorCommand PASE la validación cuando el email está en blanco
+     * (email es opcional para doctores).
+     */
     @Test
     void shouldPassWhenEmailIsBlank() {
         CreateDoctorCommand command = new CreateDoctorCommand(
@@ -105,6 +124,9 @@ class CreateDoctorCommandValidationTest {
         assertFalse(hasEmailViolation, "Email en blanco no debe causar violación (es opcional)");
     }
 
+    /**
+     * Verifica que un CreateDoctorCommand falle la validación cuando la especialidad del doctor está en blanco.
+     */
     @Test
     void shouldFailWhenSpecialtyIsBlank() {
         CreateDoctorCommand command = new CreateDoctorCommand(

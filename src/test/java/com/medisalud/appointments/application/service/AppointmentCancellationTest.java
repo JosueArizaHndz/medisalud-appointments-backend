@@ -51,10 +51,10 @@ class AppointmentCancellationTest {
 
     @BeforeEach
     void setUp() {
-        // Clean existing appointments to ensure clean test state
+        // Limpiar citas existentes para asegurar un estado limpio de prueba
         appointmentRepositoryPort.findAll().forEach(a -> appointmentRepositoryPort.deleteById(a.getId()));
 
-        // Create test doctor
+        // Crear doctor de prueba
         Doctor doctor = Doctor.builder()
                 .name("Dr. Test Doctor")
                 .email("test.cancellation@medisalud.com")
@@ -66,7 +66,7 @@ class AppointmentCancellationTest {
         doctor = doctorRepositoryPort.save(doctor);
         doctorId = doctor.getId();
 
-        // Create test patient
+        // Crear paciente de prueba
         Patient patient = Patient.builder()
                 .name("Patient Cancellation Test")
                 .identityDocument("9999999999")
@@ -77,122 +77,143 @@ class AppointmentCancellationTest {
         patient = patientRepositoryPort.save(patient);
         patientId = patient.getId();
 
-        // Ensure futureMonday is a Monday
+        // Asegurar que futureMonday sea un lunes
         futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(10, 0);
         futureSaturday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.SATURDAY).atTime(10, 0);
         sunday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.SUNDAY).atTime(10, 0);
     }
 
+    /**
+     * Verifica que al cancelar una cita con menos de 2 horas de anticipación,
+     * se genere una penalización tipo CANCELACION_TARDIA para el paciente.
+     */
     @Test
     void testCancelAppointmentWithPenalty_LessThan2Hours() {
-        // Create an appointment in 1 hour (should generate penalty)
-        // Use a time slot that is within 30-minute intervals and within 1 hour from now
+        // Crear una cita en 1 hora (debería generar penalización)
+        // Usar un horario dentro de intervalos de 30 minutos y dentro de 1 hora desde ahora
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime appointmentTime = now.withMinute(0).withSecond(0).withNano(0).plusHours(1);
 
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, appointmentTime, "Test notes"));
+                        patientId, doctorId, appointmentTime, "Notas de prueba"));
 
-        // Get initial penalty count
+        // Obtener conteo inicial de penalizaciones
         List<Penalty> initialPenalties = penaltyRepositoryPort.findByPatientId(patientId);
         int initialPenaltyCount = initialPenalties.size();
 
-        // Cancel the appointment
+        // Cancelar la cita
         AppointmentResponse response = appointmentService.cancelAppointment(
                 new CancelAppointmentCommand(appointment.id()));
 
-        // Verify appointment is cancelled
+        // Verificar que la cita está cancelada
         assertEquals(AppointmentStatus.CANCELADA, response.status());
         assertNotNull(response.cancellationDate(), "La fecha de cancelación debe estar presente");
 
-        // Verify penalty was created
+        // Verificar que se creó la penalización
         List<Penalty> penalties = penaltyRepositoryPort.findByPatientId(patientId);
         assertEquals(initialPenaltyCount + 1, penalties.size(), "Debe crearse una penalización");
         assertEquals("CANCELACION_TARDIA", penalties.get(penalties.size() - 1).getPenaltyType());
     }
 
+    /**
+     * Verifica que al cancelar una cita con más de 2 horas de anticipación,
+     * NO se genera ninguna penalización para el paciente.
+     */
     @Test
     void testCancelAppointmentWithoutPenalty_GreaterThan2Hours() {
-        // Create an appointment in 3 hours (should NOT generate penalty)
-        // Use a future Monday to avoid day-of-week validation issues
+        // Crear una cita en 3 horas (NO debería generar penalización)
+        // Usar un lunes futuro para evitar problemas de validación de día de la semana
         LocalDateTime futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(14, 30);
 
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Test notes"));
+                        patientId, doctorId, futureMonday, "Notas de prueba"));
 
-        // Get initial penalty count
+        // Obtener conteo inicial de penalizaciones
         List<Penalty> initialPenalties = penaltyRepositoryPort.findByPatientId(patientId);
         int initialPenaltyCount = initialPenalties.size();
 
-        // Cancel the appointment
+        // Cancelar la cita
         AppointmentResponse response = appointmentService.cancelAppointment(
                 new CancelAppointmentCommand(appointment.id()));
 
-        // Verify appointment is cancelled
+        // Verificar que la cita está cancelada
         assertEquals(AppointmentStatus.CANCELADA, response.status());
         assertNotNull(response.cancellationDate(), "La fecha de cancelación debe estar presente");
 
-        // Verify NO penalty was created
+        // Verificar que NO se creó penalización
         List<Penalty> penalties = penaltyRepositoryPort.findByPatientId(patientId);
         assertEquals(initialPenaltyCount, penalties.size(), "No debe crearse penalización");
     }
 
+    /**
+     * Verifica que intentar cancelar una cita que no existe lance una excepción.
+     */
     @Test
     void testCancelNonExistentAppointment_ReturnsNull() {
         UUID nonExistentId = UUID.randomUUID();
 
-        // Should throw exception for non-existent appointment
+        // Debería lanzar excepción para cita inexistente
         assertThrows(Exception.class, () -> {
             appointmentService.cancelAppointment(new CancelAppointmentCommand(nonExistentId));
         });
     }
 
+    /**
+     * Verifica que intentar cancelar una cita ya cancelada lance una excepción IllegalStateException.
+     */
     @Test
     void testCancelAlreadyCancelledAppointment() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Test notes"));
+                        patientId, doctorId, futureMonday, "Notas de prueba"));
 
-        // First cancellation should succeed
+        // La primera cancelación debería tener éxito
         AppointmentResponse response1 = appointmentService.cancelAppointment(
                 new CancelAppointmentCommand(appointment.id()));
         assertEquals(AppointmentStatus.CANCELADA, response1.status());
 
-        // Second cancellation should fail
+        // La segunda cancelación debería fallar
         assertThrows(IllegalStateException.class, () -> {
             appointmentService.cancelAppointment(new CancelAppointmentCommand(appointment.id()));
         });
     }
 
+    /**
+     * Verifica que una cita ya finalizada no puede ser cancelada nuevamente.
+     */
     @Test
     void testCancelFinalizedAppointment() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Test notes"));
+                        patientId, doctorId, futureMonday, "Notas de prueba"));
 
-        // Set status to FINALIZADA
+        // Establecer estado a FINALIZADA
         com.medisalud.appointments.domain.model.Appointment appt = appointmentRepositoryPort.findById(appointment.id()).orElse(null);
         appt.setStatus(AppointmentStatus.FINALIZADA);
         appointmentRepositoryPort.save(appt);
 
-        // Cannot cancel finalized appointment
+        // No se puede cancelar una cita finalizada
         assertThrows(IllegalStateException.class, () -> {
             appointmentService.cancelAppointment(new CancelAppointmentCommand(appointment.id()));
         });
     }
 
+    /**
+     * Verifica que al cancelar una cita, el horario (slot) vuelve a estar disponible
+     * para nuevas reservas.
+     */
     @Test
     void testCancelledSlotBecomesAvailable() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Test notes"));
+                        patientId, doctorId, futureMonday, "Notas de prueba"));
 
-        // Query available slots BEFORE cancellation
+        // Consultar slots disponibles ANTES de la cancelación
         List<com.medisalud.appointments.application.dto.AvailableSlot> slotsBefore = 
                 appointmentService.getAvailableSlots(
                         new com.medisalud.appointments.domain.port.in.AvailableSlotsQuery(
@@ -200,10 +221,10 @@ class AppointmentCancellationTest {
                                 LocalDate.now().plusDays(7), 
                                 LocalDate.now().plusDays(7)));
 
-        // Cancel the appointment
+        // Cancelar la cita
         appointmentService.cancelAppointment(new CancelAppointmentCommand(appointment.id()));
 
-        // Query available slots AFTER cancellation
+        // Consultar slots disponibles DESPUÉS de la cancelación
         List<com.medisalud.appointments.application.dto.AvailableSlot> slotsAfter = 
                 appointmentService.getAvailableSlots(
                         new com.medisalud.appointments.domain.port.in.AvailableSlotsQuery(
@@ -211,19 +232,22 @@ class AppointmentCancellationTest {
                                 LocalDate.now().plusDays(7), 
                                 LocalDate.now().plusDays(7)));
 
-        // The cancelled slot should now be available
+        // El slot cancelado debería estar disponible ahora
         assertTrue(slotsAfter.size() >= slotsBefore.size(), 
                 "El slot cancelado debe volver a estar disponible");
     }
 
+    /**
+     * Verifica que se puede cancelar exitosamente una cita programada para sábado.
+     */
     @Test
     void testCancelAppointmentOnSaturday() {
-        // Create an appointment on Saturday
+        // Crear una cita para sábado
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
                         patientId, doctorId, futureSaturday, "Test Saturday"));
 
-        // Cancel the appointment
+        // Cancelar la cita
         AppointmentResponse response = appointmentService.cancelAppointment(
                 new CancelAppointmentCommand(appointment.id()));
 
@@ -231,9 +255,12 @@ class AppointmentCancellationTest {
         assertNotNull(response.cancellationDate());
     }
 
+    /**
+     * Verifica que no se pueden crear citas para días domingo (no hay disponibilidad).
+     */
     @Test
     void testCannotCancelAppointmentOnSunday() {
-        // Attempt to create appointment on Sunday should fail
+        // Intentar crear cita en domingo debería fallar
         assertThrows(Exception.class, () -> {
             appointmentService.createAppointment(
                     new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
@@ -241,31 +268,39 @@ class AppointmentCancellationTest {
         });
     }
 
+    /**
+     * Verifica que al cancelar una cita, el campo cancellationDate se registre
+     * correctamente en el modelo de la cita.
+     */
     @Test
     void testCancellationDateIsRecorded() {
-        // Create an appointment with more than 2 hours using a future Monday
+        // Crear una cita con más de 2 horas usando un lunes futuro
         LocalDateTime futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(15, 0);
 
         AppointmentResponse appointment = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Test notes"));
+                        patientId, doctorId, futureMonday, "Notas de prueba"));
 
-        // Get original appointment
+        // Obtener cita original
         com.medisalud.appointments.domain.model.Appointment original = appointmentRepositoryPort.findById(appointment.id()).orElse(null);
         assertNull(original.getCancellationDate(), "Original no debe tener fecha de cancelación");
 
-        // Cancel the appointment
+        // Cancelar la cita
         appointmentService.cancelAppointment(new CancelAppointmentCommand(appointment.id()));
 
-        // Verify cancellation date is recorded
+        // Verificar que la fecha de cancelación está registrada
         com.medisalud.appointments.domain.model.Appointment cancelled = appointmentRepositoryPort.findById(appointment.id()).orElse(null);
         assertNotNull(cancelled.getCancellationDate(), "La fecha de cancelación debe estar presente");
         assertEquals(AppointmentStatus.CANCELADA, cancelled.getStatus(), "La cita debe estar cancelada");
     }
 
+    /**
+     * Verifica que múltiples cancelaciones tardías generan múltiples penalizaciones
+     * para el mismo paciente.
+     */
     @Test
     void testMultiplePenaltiesForMultipleLateCancellations() {
-        // Create patient 2
+        // Crear paciente 2
         Patient patient2 = Patient.builder()
                 .name("Patient Multiple Penalties")
                 .identityDocument("8888888888")
@@ -276,7 +311,7 @@ class AppointmentCancellationTest {
         patient2 = patientRepositoryPort.save(patient2);
         UUID patient2Id = patient2.getId();
 
-        // Create and cancel 3 appointments within 2 hours (should generate 3 penalties)
+        // Crear y cancelar 3 citas dentro de 2 horas (debería generar 3 penalizaciones)
         for (int i = 0; i < 3; i++) {
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime appointmentTime = now.withMinute(0).withSecond(0).withNano(0).plusHours(1);
@@ -287,7 +322,7 @@ class AppointmentCancellationTest {
             appointmentService.cancelAppointment(new CancelAppointmentCommand(appointment.id()));
         }
 
-        // Verify 3 penalties were created
+        // Verificar que se crearon 3 penalizaciones
         List<Penalty> penalties = penaltyRepositoryPort.findByPatientId(patient2Id);
         assertEquals(3, penalties.size(), "Debe crear 3 penalizaciones");
     }

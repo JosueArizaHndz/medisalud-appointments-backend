@@ -21,6 +21,10 @@ class CreateAppointmentCommandValidationTest {
         this.validator = factory.getValidator();
     }
 
+    /**
+     * Verifica que un CreateAppointmentCommand con todos los campos válidos
+     * (patientId, doctorId, appointmentDate) pase la validación sin errores.
+     */
     @Test
     void validCreateAppointmentCommand_shouldPassValidation() {
         UUID patientId = UUID.randomUUID();
@@ -38,6 +42,9 @@ class CreateAppointmentCommandValidationTest {
         assertTrue(violations.isEmpty(), "No debería haber violaciones de validación");
     }
 
+    /**
+     * Verifica que un CreateAppointmentCommand falle la validación cuando patientId es nulo.
+     */
     @Test
     void nullPatientId_shouldFailValidation() {
         CreateAppointmentCommand command = new CreateAppointmentCommand(
@@ -54,6 +61,9 @@ class CreateAppointmentCommandValidationTest {
         assertTrue(patientViolations > 0, "patientId nulo debería fallar");
     }
 
+    /**
+     * Verifica que un CreateAppointmentCommand falle la validación cuando doctorId es nulo.
+     */
     @Test
     void nullDoctorId_shouldFailValidation() {
         CreateAppointmentCommand command = new CreateAppointmentCommand(
@@ -70,6 +80,9 @@ class CreateAppointmentCommandValidationTest {
         assertTrue(doctorViolations > 0, "doctorId nulo debería fallar");
     }
 
+    /**
+     * Verifica que un CreateAppointmentCommand falle la validación cuando appointmentDate es nulo.
+     */
     @Test
     void nullAppointmentDate_shouldFailValidation() {
         CreateAppointmentCommand command = new CreateAppointmentCommand(
@@ -86,6 +99,10 @@ class CreateAppointmentCommandValidationTest {
         assertTrue(dateViolations > 0, "appointmentDate nulo debería fallar");
     }
 
+    /**
+     * Verifica que un CreateAppointmentCommand pase la validación cuando notes es nulo
+     * (las notas son opcionales).
+     */
     @Test
     void nullNotes_shouldPassValidation() {
         CreateAppointmentCommand command = new CreateAppointmentCommand(
@@ -99,6 +116,9 @@ class CreateAppointmentCommandValidationTest {
         assertTrue(violations.isEmpty(), "notes nulo debería pasar (es opcional)");
     }
 
+    /**
+     * Verifica que un CreateAppointmentCommand válido sin notas pase la validación correctamente.
+     */
     @Test
     void validCommandWithoutNotes_shouldPassValidation() {
         CreateAppointmentCommand command = new CreateAppointmentCommand(

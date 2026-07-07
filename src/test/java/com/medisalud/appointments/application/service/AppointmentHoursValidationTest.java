@@ -63,13 +63,17 @@ class AppointmentHoursValidationTest {
         patientId = patient.getId();
     }
 
+    /**
+     * Test base para validar la configuración inicial de horarios de citas.
+     * Limpia las citas existentes para asegurar un estado limpio de prueba.
+     */
     @Test
     void testAppointmentHoursValidation() {
-        // Clean existing appointments to ensure clean test state
+        // Limpiar citas existentes para asegurar un estado limpio de prueba
         appointmentRepositoryPort.findAll().forEach(a -> appointmentRepositoryPort.deleteById(a.getId()));
     }
 
-    // Use a fixed Monday in the future to avoid day-of-week issues
+    // Usar un lunes fijo en el futuro para evitar problemas de validación de día de la semana
     private LocalDateTime getMondayFuture(int hour, int minute) {
         return LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(hour, minute);
     }
@@ -86,9 +90,12 @@ class AppointmentHoursValidationTest {
         return LocalDate.now().plusDays(6).with(java.time.DayOfWeek.FRIDAY).atTime(hour, minute);
     }
 
+    /**
+     * Verifica que se pueda crear una cita el lunes a las 08:00 (primer horario válido).
+     */
     @Test
     void mondayMorningValidAppointment_shouldSucceed() {
-        // Monday at 08:00 is valid
+        // Lunes a las 08:00 es válido
         LocalDateTime mondayMorning = getMondayFuture(8, 0);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, mondayMorning, "Morning appointment"
@@ -97,9 +104,12 @@ class AppointmentHoursValidationTest {
         assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
+    /**
+     * Verifica que se pueda crear una cita el lunes a las 17:30 (último horario válido antes de las 18:00).
+     */
     @Test
     void mondayAfternoonValidAppointment_shouldSucceed() {
-        // Monday at 17:30 is valid (before 18:00)
+        // Lunes a las 17:30 es válido (antes de 18:00)
         LocalDateTime mondayAfternoon = getMondayFuture(17, 30);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, mondayAfternoon, "Afternoon appointment"
@@ -108,9 +118,13 @@ class AppointmentHoursValidationTest {
         assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
+    /**
+     * Verifica que NO se pueda crear una cita el lunes a las 18:00 o después
+     * (horario inválido para días de semana).
+     */
     @Test
     void mondayEveningInvalidAppointment_shouldFail() {
-        // Monday at 18:00 is NOT valid (must be before 18:00)
+        // Lunes a las 18:00 NO es válido (debe ser antes de 18:00)
         LocalDateTime mondayEvening = getMondayFuture(18, 0);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, mondayEvening, "Evening appointment"
@@ -122,9 +136,13 @@ class AppointmentHoursValidationTest {
         assertTrue(exception.getMessage().contains("08:00 a 18:00"), "Should mention weekday hours");
     }
 
+    /**
+     * Verifica que NO se pueda crear una cita el lunes antes de las 08:00
+     * (horario inválido para días de semana).
+     */
     @Test
     void mondayEarlyMorningInvalidAppointment_shouldFail() {
-        // Monday at 07:30 is NOT valid (must be after 08:00)
+        // Lunes a las 07:30 NO es válido (debe ser después de 08:00)
         LocalDateTime mondayEarly = getMondayFuture(7, 30);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, mondayEarly, "Early morning appointment"
@@ -136,9 +154,12 @@ class AppointmentHoursValidationTest {
         assertTrue(exception.getMessage().contains("08:00 a 18:00"), "Should mention weekday hours");
     }
 
+    /**
+     * Verifica que se pueda crear una cita el sábado a las 08:00 (primer horario válido para sábados).
+     */
     @Test
     void saturdayMorningValidAppointment_shouldSucceed() {
-        // Saturday at 08:00 is valid
+        // Sábado a las 08:00 es válido
         LocalDateTime saturdayMorning = getSaturdayFuture(8, 0);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, saturdayMorning, "Saturday morning appointment"
@@ -147,9 +168,12 @@ class AppointmentHoursValidationTest {
         assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
+    /**
+     * Verifica que se pueda crear una cita el sábado a las 12:30 (último horario válido antes de las 13:00).
+     */
     @Test
     void saturdayLateMorningValidAppointment_shouldSucceed() {
-        // Saturday at 12:30 is valid (before 13:00)
+        // Sábado a las 12:30 es válido (antes de 13:00)
         LocalDateTime saturdayLate = getSaturdayFuture(12, 30);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, saturdayLate, "Saturday late morning appointment"
@@ -158,9 +182,13 @@ class AppointmentHoursValidationTest {
         assertEquals(AppointmentStatus.PROGRAMADA, response.status());
     }
 
+    /**
+     * Verifica que NO se pueda crear una cita el sábado a las 13:00 o después
+     * (horario inválido para sábados).
+     */
     @Test
     void saturdayAfternoonInvalidAppointment_shouldFail() {
-        // Saturday at 13:00 is NOT valid (must be before 13:00)
+        // Sábado a las 13:00 NO es válido (debe ser antes de 13:00)
         LocalDateTime saturdayAfternoon = getSaturdayFuture(13, 0);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, saturdayAfternoon, "Saturday afternoon appointment"
@@ -172,9 +200,12 @@ class AppointmentHoursValidationTest {
         assertTrue(exception.getMessage().contains("08:00 a 13:00"), "Should mention Saturday hours");
     }
 
+    /**
+     * Verifica que NO se pueda crear una cita ningún día domingo (no hay atención).
+     */
     @Test
     void sundayAnyTimeInvalidAppointment_shouldFail() {
-        // Sunday at any time is NOT valid
+        // Domingo a cualquier hora NO es válido
         LocalDateTime sundayMorning = getSundayFuture(10, 0);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, sundayMorning, "Sunday appointment"
@@ -186,6 +217,10 @@ class AppointmentHoursValidationTest {
         assertTrue(exception.getMessage().contains("domingos"), "Should mention Sundays are not allowed");
     }
 
+    /**
+     * Verifica que NO se pueda crear una cita en un horario que no sea
+     * múltiplo de 30 minutos (ej. 10:15 no es válido).
+     */
     @Test
     void nonThirtyMinuteIntervalInvalidAppointment_shouldFail() {
         // 10:15 is NOT valid (must be 30-minute intervals)
@@ -200,6 +235,10 @@ class AppointmentHoursValidationTest {
         assertTrue(exception.getMessage().contains("30 minutos"), "Should mention 30-minute intervals");
     }
 
+    /**
+     * Verifica que NO se pueda crear una cita en un horario que no sea
+     * múltiplo de 30 minutos (ej. 11:47 no es válido).
+     */
     @Test
     void nonThirtyMinuteIntervalInvalidAppointment2_shouldFail() {
         // 11:47 is NOT valid (must be 30-minute intervals)
@@ -214,9 +253,13 @@ class AppointmentHoursValidationTest {
         assertTrue(exception.getMessage().contains("30 minutos"), "Should mention 30-minute intervals");
     }
 
+    /**
+     * Verifica que varios horarios válidos con intervalos de 30 minutos
+     * sean aceptados correctamente (08:00, 08:30, 09:00, 09:30, 10:00, 17:30).
+     */
     @Test
     void validThirtyMinuteIntervals_shouldSucceed() {
-        // Test various valid 30-minute intervals
+        // Probar varios intervalos válidos de 30 minutos
         LocalDateTime[] validTimes = {
             getMondayFuture(8, 0),
             getMondayFuture(8, 30),
@@ -236,9 +279,12 @@ class AppointmentHoursValidationTest {
         }
     }
 
+    /**
+     * Verifica que el último slot válido del viernes (17:30) sea aceptado correctamente.
+     */
     @Test
     void fridayLastValidSlot_shouldSucceed() {
-        // Friday at 17:30 is the last valid slot
+        // Viernes a las 17:30 es el último slot válido
         LocalDateTime fridayLast = getFridayFuture(17, 30);
         CreateAppointmentCommand cmd = new CreateAppointmentCommand(
             patientId, doctorId, fridayLast, "Friday last slot"

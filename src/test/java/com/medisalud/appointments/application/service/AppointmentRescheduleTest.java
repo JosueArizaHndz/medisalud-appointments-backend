@@ -52,10 +52,10 @@ class AppointmentRescheduleTest {
 
     @BeforeEach
     void setUp() {
-        // Clean existing appointments to ensure clean test state
+        // Limpiar citas existentes para asegurar un estado limpio de prueba
         appointmentRepositoryPort.findAll().forEach(a -> appointmentRepositoryPort.deleteById(a.getId()));
 
-        // Create test doctor
+        // Crear doctor de prueba
         Doctor doctor = Doctor.builder()
                 .name("Dr. Test Doctor Reschedule")
                 .email("test.reschedule@medisalud.com")
@@ -67,7 +67,7 @@ class AppointmentRescheduleTest {
         doctor = doctorRepositoryPort.save(doctor);
         doctorId = doctor.getId();
 
-        // Create test patient
+        // Crear paciente de prueba
         Patient patient = Patient.builder()
                 .name("Patient Reschedule Test")
                 .identityDocument("7777777777")
@@ -78,39 +78,46 @@ class AppointmentRescheduleTest {
         patient = patientRepositoryPort.save(patient);
         patientId = patient.getId();
 
-        // Ensure dates are on weekdays to avoid day-of-week validation issues
+        // Asegurar que las fechas sean días de semana para evitar problemas de validación
         futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(10, 0);
         futureMonday2 = LocalDate.now().plusDays(10).with(java.time.DayOfWeek.MONDAY).atTime(14, 0);
         futureSaturday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.SATURDAY).atTime(10, 0);
         sunday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.SUNDAY).atTime(10, 0);
     }
 
+    /**
+     * Verifica que se pueda reprogramar exitosamente una cita a una nueva fecha/hora,
+     * y que la cita original se marque como cancelada.
+     */
     @Test
     void testRescheduleAppointment_Success() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Original appointment"));
+                        patientId, doctorId, futureMonday, "Cita original"));
 
         assertEquals(AppointmentStatus.PROGRAMADA, original.status());
 
-        // Reschedule to a different time
+        // Reprogramar a una hora diferente
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
                 new RescheduleAppointmentCommand(original.id(), futureMonday2));
 
-        // Verify new appointment
+        // Verificar nueva cita
         assertEquals(AppointmentStatus.PROGRAMADA, rescheduled.status());
         assertEquals(futureMonday2, rescheduled.appointmentDate());
         assertEquals(patientId, rescheduled.patientId());
         assertEquals(doctorId, rescheduled.doctorId());
 
-        // Verify original appointment was cancelled
+        // Verificar que la cita original fue cancelada
         Appointment originalAfter = appointmentRepositoryPort.findById(original.id()).orElse(null);
         assertNotNull(originalAfter);
         assertEquals(AppointmentStatus.CANCELADA, originalAfter.getStatus());
         assertNotNull(originalAfter.getCancellationDate());
     }
 
+    /**
+     * Verifica que intentar reprogramar una cita que no existe lance una excepción.
+     */
     @Test
     void testRescheduleNonExistentAppointment() {
         UUID nonExistentId = UUID.randomUUID();
@@ -120,49 +127,58 @@ class AppointmentRescheduleTest {
         });
     }
 
+    /**
+     * Verifica que no se pueda reprogramar una cita que ya fue cancelada.
+     */
     @Test
     void testRescheduleCancelledAppointment() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Original appointment"));
+                        patientId, doctorId, futureMonday, "Cita original"));
 
-        // Cancel it first
+        // Cancelarla primero
         appointmentService.cancelAppointment(
                 new com.medisalud.appointments.domain.port.in.CancelAppointmentCommand(original.id()));
 
-        // Cannot reschedule a cancelled appointment
+        // No se puede reprogramar una cita cancelada
         assertThrows(IllegalStateException.class, () -> {
             appointmentService.rescheduleAppointment(new RescheduleAppointmentCommand(original.id(), futureMonday2));
         });
     }
 
+    /**
+     * Verifica que no se pueda reprogramar una cita que ya fue finalizada.
+     */
     @Test
     void testRescheduleFinalizedAppointment() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Original appointment"));
+                        patientId, doctorId, futureMonday, "Cita original"));
 
-        // Set status to FINALIZADA
+        // Establecer estado a FINALIZADA
         Appointment appt = appointmentRepositoryPort.findById(original.id()).orElse(null);
         appt.setStatus(AppointmentStatus.FINALIZADA);
         appointmentRepositoryPort.save(appt);
 
-        // Cannot reschedule a finalized appointment
+        // No se puede reprogramar una cita finalizada
         assertThrows(IllegalStateException.class, () -> {
             appointmentService.rescheduleAppointment(new RescheduleAppointmentCommand(original.id(), futureMonday2));
         });
     }
 
+    /**
+     * Verifica que no se pueda reprogramar una cita a una fecha pasada.
+     */
     @Test
     void testRescheduleToPastDate() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Original appointment"));
+                        patientId, doctorId, futureMonday, "Cita original"));
 
-        // Try to reschedule to a past date
+        // Intentar reprogramar a una fecha pasada
         LocalDateTime pastDate = LocalDateTime.now().minusHours(2);
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -170,22 +186,29 @@ class AppointmentRescheduleTest {
         });
     }
 
+    /**
+     * Verifica que no se pueda reprogramar una cita para un día domingo.
+     */
     @Test
     void testRescheduleToSunday() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Original appointment"));
+                        patientId, doctorId, futureMonday, "Cita original"));
 
-        // Try to reschedule to Sunday
+        // Intentar reprogramar a domingo
         assertThrows(Exception.class, () -> {
             appointmentService.rescheduleAppointment(new RescheduleAppointmentCommand(original.id(), sunday));
         });
     }
 
+    /**
+     * Verifica que no se pueda reprogramar una cita a un horario donde el médico
+     * ya tiene otra cita (conflicto de médico).
+     */
     @Test
     void testRescheduleDoctorConflict() {
-        // Create patient 2
+        // Crear paciente 2
         Patient patient2 = Patient.builder()
                 .name("Patient Two Reschedule")
                 .identityDocument("6666666666")
@@ -196,20 +219,24 @@ class AppointmentRescheduleTest {
         patient2 = patientRepositoryPort.save(patient2);
         UUID patient2Id = patient2.getId();
 
-        // Create appointment for patient 2 at same time as patient 1
+        // Crear cita para paciente 2 al mismo horario que paciente 1
         AppointmentResponse appt2 = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patient2Id, doctorId, futureMonday, "Appointment for patient 2"));
+                        patient2Id, doctorId, futureMonday, "Cita para paciente 2"));
 
-        // Try to reschedule patient 1 to conflict with patient 2's appointment (same doctor)
+        // Intentar reprogramar paciente 1 para que coincida con la cita de paciente 2 (mismo doctor)
         assertThrows(IllegalStateException.class, () -> {
             appointmentService.rescheduleAppointment(new RescheduleAppointmentCommand(appt2.id(), futureMonday));
         });
     }
 
+    /**
+     * Verifica que no se pueda reprogramar una cita a un horario donde el paciente
+     * ya tiene otra cita con el mismo médico (conflicto de paciente).
+     */
     @Test
     void testReschedulePatientConflict() {
-        // Create patient 2
+        // Crear paciente 2
         Patient patient2 = Patient.builder()
                 .name("Patient Two Reschedule")
                 .identityDocument("5555555555")
@@ -220,31 +247,35 @@ class AppointmentRescheduleTest {
         patient2 = patientRepositoryPort.save(patient2);
         UUID patient2Id = patient2.getId();
 
-        // Create two appointments for patient 2 on different days
+        // Crear dos citas para paciente 2 en días diferentes
         LocalDateTime differentMonday = LocalDate.now().plusDays(14).with(java.time.DayOfWeek.MONDAY).atTime(10, 0);
         
         appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patient2Id, doctorId, futureMonday, "First appointment"));
+                        patient2Id, doctorId, futureMonday, "Primera cita"));
 
         AppointmentResponse secondAppt = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patient2Id, doctorId, differentMonday, "Second appointment"));
+                        patient2Id, doctorId, differentMonday, "Segunda cita"));
 
-        // Try to reschedule second appointment to conflict with first (same patient)
+        // Intentar reprogramar la segunda cita para que coincida con la primera (mismo paciente)
         assertThrows(IllegalStateException.class, () -> {
             appointmentService.rescheduleAppointment(new RescheduleAppointmentCommand(secondAppt.id(), futureMonday));
         });
     }
 
+    /**
+     * Verifica el comportamiento de penalización al reprogramar una cita con menos de 2 horas
+     * de anticipación (la cancelación original genera penalización).
+     */
     @Test
     void testRescheduleWithPenalty_LessThan2Hours() {
-        // Create appointment in 1.5 hours on a weekday (should generate penalty because < 2 hours)
+        // Crear cita en 1.5 horas en un día de semana (debería generar penalización porque < 2 horas)
         LocalDateTime now = LocalDateTime.now();
-        // Round to next valid 30-min interval
+        // Redondear al siguiente intervalo válido de 30 minutos
         LocalDateTime appointmentTime = now.withMinute(0).withSecond(0).withNano(0).plusHours(1).plusMinutes(30);
         
-        // Ensure it's on a weekday
+        // Asegurar que sea un día de semana
         while (appointmentTime.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || 
                appointmentTime.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
             appointmentTime = appointmentTime.plusDays(1);
@@ -252,12 +283,12 @@ class AppointmentRescheduleTest {
 
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, appointmentTime, "Test penalty reschedule"));
+                        patientId, doctorId, appointmentTime, "Prueba penalización reprogramación"));
 
-        // Reschedule to a far future date - this should work and create penalty for late cancellation
+        // Reprogramar a una fecha futura lejana - esto debería funcionar y crear penalización por cancelación tardía
         LocalDateTime farFuture = LocalDate.now().plusDays(30).with(java.time.DayOfWeek.MONDAY).atTime(9, 0);
 
-        // This test verifies the reschedule works; penalty logic is covered by cancellation tests
+        // Este test verifica que la reprogramación funciona; la lógica de penalización está cubierta por los tests de cancelación
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
                 new RescheduleAppointmentCommand(original.id(), farFuture));
 
@@ -265,53 +296,60 @@ class AppointmentRescheduleTest {
         assertEquals(farFuture, rescheduled.appointmentDate());
     }
 
+    /**
+     * Verifica que al reprogramar una cita con más de 2 horas de anticipación,
+     * NO se genera penalización.
+     */
     @Test
     void testRescheduleWithoutPenalty_GreaterThan2Hours() {
-        // Create appointment in 5 hours using a future Monday to avoid day-of-week validation
+        // Crear cita en 5 horas usando un lunes futuro para evitar validación de día de la semana
         LocalDateTime futureMonday = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(10, 0);
         LocalDateTime futureMondayReschedule = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(14, 0);
 
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Test no penalty reschedule"));
+                        patientId, doctorId, futureMonday, "Prueba sin penalización reprogramación"));
 
-        // Get initial penalty count
+        // Obtener conteo inicial de penalizaciones
         List<Penalty> initialPenalties = penaltyRepositoryPort.findByPatientId(patientId);
         int initialPenaltyCount = initialPenalties.size();
 
-        // Reschedule to same day different time (should NOT generate penalty)
+        // Reprogramar al mismo día diferente hora (NO debería generar penalización)
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
                 new RescheduleAppointmentCommand(original.id(), futureMondayReschedule));
 
-        // Verify NO penalty was created
+        // Verificar que NO se creó penalización
         List<Penalty> penalties = penaltyRepositoryPort.findByPatientId(patientId);
         assertEquals(initialPenaltyCount, penalties.size(), "No debe crearse penalización");
         assertEquals(AppointmentStatus.PROGRAMADA, rescheduled.status());
     }
 
+    /**
+     * Verifica que al reprogramar una cita, se preserven las notas/original descripción de la misma.
+     */
     @Test
     void testReschedulePreservesNotes() {
-        // Create an appointment with notes
+        // Crear una cita con notas
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Important medical notes"));
+                        patientId, doctorId, futureMonday, "Notas médicas importantes"));
 
-        // Reschedule
+        // Reprogramar
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
                 new RescheduleAppointmentCommand(original.id(), futureMonday2));
 
-        // Notes should be preserved
-        assertEquals("Important medical notes", rescheduled.notes());
+        // Las notas deberían preservarse
+        assertEquals("Notas médicas importantes", rescheduled.notes());
     }
 
     @Test
     void testRescheduleToSaturday() {
-        // Create an appointment
+        // Crear una cita
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Original appointment"));
+                        patientId, doctorId, futureMonday, "Cita original"));
 
-        // Reschedule to Saturday (valid business hours 08-13)
+        // Reprogramar a sábado (horario válido 08-13)
         LocalDateTime saturdayTime = futureSaturday;
 
         AppointmentResponse rescheduled = appointmentService.rescheduleAppointment(
@@ -323,7 +361,7 @@ class AppointmentRescheduleTest {
 
     @Test
     void testRescheduleOldAppointmentBecomesUnavailable() {
-        // Create two appointments for different patients at the same time
+        // Crear dos citas para diferentes pacientes al mismo tiempo
         Patient patient2 = Patient.builder()
                 .name("Patient Two Unavailable")
                 .identityDocument("4444444444")
@@ -334,17 +372,17 @@ class AppointmentRescheduleTest {
         patient2 = patientRepositoryPort.save(patient2);
         UUID patient2Id = patient2.getId();
 
-        // Create appointment for patient 2
+        // Crear cita para paciente 2
         appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patient2Id, doctorId, futureMonday, "Patient 2 appointment"));
+                        patient2Id, doctorId, futureMonday, "Cita del paciente 2"));
 
-        // Create appointment for patient 1
+        // Crear cita para paciente 1
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday2, "Patient 1 appointment"));
+                        patientId, doctorId, futureMonday2, "Cita del paciente 1"));
 
-        // Try to reschedule to the same time as patient 2's appointment (doctor conflict)
+        // Intentar reprogramar al mismo horario que la cita de paciente 2 (conflicto de doctor)
         assertThrows(IllegalStateException.class, () -> {
             appointmentService.rescheduleAppointment(new RescheduleAppointmentCommand(original.id(), futureMonday));
         });
@@ -352,26 +390,26 @@ class AppointmentRescheduleTest {
 
     @Test
     void testRescheduleTransaction_RollbackOnConflict() {
-        // Create an appointment for patient at futureMonday
+        // Crear una cita para paciente en futureMonday
         AppointmentResponse original = appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
-                        patientId, doctorId, futureMonday, "Original appointment"));
+                        patientId, doctorId, futureMonday, "Cita original"));
 
-        // Get original cancellation date (should be null)
+        // Obtener fecha de cancelación original (debería ser nula)
         Appointment originalAppt = appointmentRepositoryPort.findById(original.id()).orElse(null);
         assertNull(originalAppt.getCancellationDate(), "Original no debe tener cancellationDate antes de reprogramar");
 
-        // Try to reschedule to a time that's 15 minutes away from futureMonday
-        // This will fail the 30-minute interval validation
+        // Intentar reprogramar a una hora que está a 15 minutos de futureMonday
+        // Esto fallará la validación de intervalo de 30 minutos
         LocalDateTime conflictingTime = futureMonday.plusMinutes(15);
         
         try {
             appointmentService.rescheduleAppointment(new RescheduleAppointmentCommand(original.id(), conflictingTime));
         } catch (Exception e) {
-            // Expected - should fail due to 30-minute interval validation
+            // Esperado - debería fallar por la validación de intervalo de 30 minutos
         }
 
-        // Verify original appointment was NOT modified (transaction rollback)
+        // Verificar que la cita original NO fue modificada (rollback de transacción)
         Appointment originalAfter = appointmentRepositoryPort.findById(original.id()).orElse(null);
         assertNull(originalAfter.getCancellationDate(), "Original no debe tener cancellationDate después de rollback");
         assertEquals(AppointmentStatus.PROGRAMADA, originalAfter.getStatus(), "Original debe mantener status PROGRAMADA después de rollback");

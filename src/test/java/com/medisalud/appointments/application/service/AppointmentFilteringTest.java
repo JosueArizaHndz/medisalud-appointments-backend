@@ -47,7 +47,7 @@ class AppointmentFilteringTest {
 
     @BeforeEach
     void setUp() {
-        // Create test doctors
+        // Crear doctores de prueba
         Doctor doctor1 = Doctor.builder()
                 .name("Dr. Filter Test 1")
                 .email("filter.doctor1@medisalud.com")
@@ -70,7 +70,7 @@ class AppointmentFilteringTest {
         doctor2 = doctorRepositoryPort.save(doctor2);
         doctorId2 = doctor2.getId();
 
-        // Create test patients
+        // Crear pacientes de prueba
         Patient patient1 = Patient.builder()
                 .name("Patient Filter Test 1")
                 .identityDocument("1111111111")
@@ -91,12 +91,12 @@ class AppointmentFilteringTest {
         patient2 = patientRepositoryPort.save(patient2);
         patientId2 = patient2.getId();
 
-        // Create appointment dates
+        // Crear fechas de citas
         mondayMorning = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(9, 0);
         mondayAfternoon = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(14, 0);
         tuesdayMorning = LocalDate.now().plusDays(8).with(java.time.DayOfWeek.TUESDAY).atTime(10, 0);
 
-        // Create appointments
+        // Crear citas
         appointmentService.createAppointment(
                 new com.medisalud.appointments.domain.port.in.CreateAppointmentCommand(
                         patientId1, doctorId1, mondayMorning, "Appointment 1"));
@@ -110,6 +110,9 @@ class AppointmentFilteringTest {
                         patientId2, doctorId2, tuesdayMorning, "Appointment 3"));
     }
 
+    /**
+     * Verifica que al listar todas las citas sin filtros, se retornen todas las citas existentes.
+     */
     @Test
     void testGetAllAppointments_NoFilters() {
         List<AppointmentResponse> all = appointmentService.listAppointments(
@@ -118,6 +121,10 @@ class AppointmentFilteringTest {
         assertEquals(3, all.size(), "Debe retornar todas las citas");
     }
 
+    /**
+     * Verifica que el filtro por ID de doctor funcione correctamente,
+     * retornando solo las citas de ese médico.
+     */
     @Test
     void testFilterByDoctorId() {
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
@@ -127,6 +134,10 @@ class AppointmentFilteringTest {
         filtered.forEach(r -> assertEquals(doctorId1, r.doctorId()));
     }
 
+    /**
+     * Verifica que el filtro por ID de paciente funcione correctamente,
+     * retornando solo las citas de ese paciente.
+     */
     @Test
     void testFilterByPatientId() {
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
@@ -136,35 +147,51 @@ class AppointmentFilteringTest {
         filtered.forEach(r -> assertEquals(patientId1, r.patientId()));
     }
 
+    /**
+     * Verifica que el filtro por estado de cita funcione correctamente,
+     * retornando solo las citas con el estado especificado.
+     */
     @Test
     void testFilterByStatus() {
         List<AppointmentResponse> all = appointmentService.listAppointments(
                 new ListAppointmentsQuery(null, null, null, null, null));
 
-        // All should be PROGRAMADA
+        // Todas deberían ser PROGRAMADA
         List<AppointmentResponse> programadas = appointmentService.listAppointments(
                 new ListAppointmentsQuery(null, null, "PROGRAMADA", null, null));
 
         assertEquals(all.size(), programadas.size(), "Todas las citas deben ser PROGRAMADA");
     }
 
+    /**
+     * Verifica que el filtro por fecha de inicio funcione correctamente,
+     * retornando solo las citas a partir de la fecha especificada.
+     */
     @Test
     void testFilterByStartDate() {
-        // Filter from mondayAfternoon onwards - should get mondayAfternoon and tuesdayMorning
+        // Filtrar desde mondayAfternoon hacia adelante - debe obtener mondayAfternoon y tuesdayMorning
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
                 new ListAppointmentsQuery(null, null, null, mondayAfternoon, null));
 
         assertEquals(2, filtered.size(), "Debe filtrar por fecha inicio");
     }
 
+    /**
+     * Verifica que el filtro por fecha de fin funcione correctamente,
+     * retornando solo las citas hasta la fecha especificada.
+     */
     @Test
     void testFilterByEndDate() {
+        // Filtrar hasta mondayMorning
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
                 new ListAppointmentsQuery(null, null, null, null, mondayMorning));
 
         assertEquals(1, filtered.size(), "Debe filtrar por fecha fin");
     }
 
+    /**
+     * Verifica que el filtro por rango de fechas (inicio y fin) funcione correctamente.
+     */
     @Test
     void testFilterByDateRange() {
         LocalDateTime start = mondayMorning.minusHours(1);
@@ -176,6 +203,9 @@ class AppointmentFilteringTest {
         assertEquals(2, filtered.size(), "Debe filtrar por rango de fechas");
     }
 
+    /**
+     * Verifica que se puedan combinar múltiples filtros (doctor + estado) correctamente.
+     */
     @Test
     void testFilterByDoctorAndStatus() {
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
@@ -184,6 +214,9 @@ class AppointmentFilteringTest {
         assertEquals(2, filtered.size(), "Debe filtrar por doctor y estado");
     }
 
+    /**
+     * Verifica que se puedan combinar filtros de paciente con rango de fechas.
+     */
     @Test
     void testFilterByPatientAndDateRange() {
         LocalDateTime start = mondayMorning.minusHours(1);
@@ -195,6 +228,9 @@ class AppointmentFilteringTest {
         assertEquals(1, filtered.size(), "Debe filtrar por paciente y rango de fechas");
     }
 
+    /**
+     * Verifica que al filtrar con un ID que no existe, se retorne una lista vacía.
+     */
     @Test
     void testFilterNoResults_ReturnsEmptyList() {
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
@@ -203,6 +239,9 @@ class AppointmentFilteringTest {
         assertTrue(filtered.isEmpty(), "Debe retornar lista vacía cuando no hay resultados");
     }
 
+    /**
+     * Verifica que al filtrar con un estado inválido, se retorne una lista vacía.
+     */
     @Test
     void testFilterByNonExistentStatus() {
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
@@ -211,6 +250,10 @@ class AppointmentFilteringTest {
         assertTrue(filtered.isEmpty(), "Debe retornar lista vacía para estado inválido");
     }
 
+    /**
+     * Verifica que se puedan combinar todos los parámetros de filtro simultáneamente
+     * (doctor, paciente, estado) correctamente.
+     */
     @Test
     void testFilterCombination_AllParameters() {
         List<AppointmentResponse> filtered = appointmentService.listAppointments(
@@ -223,15 +266,22 @@ class AppointmentFilteringTest {
         assertEquals(AppointmentStatus.PROGRAMADA, result.status());
     }
 
+    /**
+     * Verifica que las citas no canceladas tengan el campo cancellationDate en null.
+     */
     @Test
     void testResponseContainsCancellationDate() {
         List<AppointmentResponse> all = appointmentService.listAppointments(
                 new ListAppointmentsQuery(null, null, null, null, null));
 
-        // All should have cancellationDate as null (not cancelled)
+        // Todas deberían tener cancellationDate en null (no canceladas)
         all.forEach(r -> assertNull(r.cancellationDate(), "Citas no canceladas no deben tener cancellationDate"));
     }
 
+    /**
+     * Verifica que la respuesta de cada cita contenga toda la información relevante:
+     * ID, paciente, doctor, especialidad, fecha, estado, etc.
+     */
     @Test
     void testResponseContainsRelevantInfo() {
         List<AppointmentResponse> all = appointmentService.listAppointments(

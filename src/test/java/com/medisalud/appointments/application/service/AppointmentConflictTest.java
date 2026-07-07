@@ -45,10 +45,10 @@ class AppointmentConflictTest {
 
     @BeforeEach
     void setUp() {
-        // Clean existing appointments to ensure clean test state
+        // Limpiar citas existentes para asegurar un estado limpio de prueba
         appointmentRepositoryPort.findAll().forEach(a -> appointmentRepositoryPort.deleteById(a.getId()));
 
-        // Create test doctor
+        // Crear doctor de prueba
         Doctor doctor = Doctor.builder()
                 .name("Dr. Test Doctor")
                 .email("test.doctor@medisalud.com")
@@ -60,7 +60,7 @@ class AppointmentConflictTest {
         doctor = doctorRepositoryPort.save(doctor);
         doctorId = doctor.getId();
 
-        // Create test patients
+        // Crear pacientes de prueba
         Patient patient1 = Patient.builder()
                 .name("Patient One")
                 .identityDocument("1111111111")
@@ -81,55 +81,63 @@ class AppointmentConflictTest {
         patient2 = patientRepositoryPort.save(patient2);
         patient2Id = patient2.getId();
 
-        // Ensure futureDate is a Monday to avoid day-of-week validation issues
+        // Asegurar que futureDate sea un lunes para evitar problemas de validación
         futureDate = LocalDate.now().plusDays(7).with(java.time.DayOfWeek.MONDAY).atTime(10, 0);
     }
 
+    /**
+     * Verifica que un médico pueda tener múltiples citas el mismo día
+     * siempre que sean en horarios (slots) diferentes.
+     */
     @Test
     void doctorCanHaveMultipleAppointmentsSameDayDifferentSlots() {
-        // Create first appointment at 10:00
+        // Crear primera cita a las 10:00
         CreateAppointmentCommand cmd1 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "First appointment"
+            "Primera cita"
         );
         AppointmentResponse response1 = appointmentService.createAppointment(cmd1);
         assertEquals(AppointmentStatus.PROGRAMADA, response1.status());
 
-        // Create second appointment at 14:00 (different slot)
+        // Crear segunda cita a las 14:00 (slot diferente)
         CreateAppointmentCommand cmd2 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(14).withMinute(0),
-            "Second appointment"
+            "Segunda cita"
         );
         AppointmentResponse response2 = appointmentService.createAppointment(cmd2);
         assertEquals(AppointmentStatus.PROGRAMADA, response2.status());
 
-        // Both should be created successfully
+        // Ambas deben crearse exitosamente
         assertNotNull(response1.id());
         assertNotNull(response2.id());
         assertNotEquals(response1.id(), response2.id());
     }
 
+    /**
+     * Verifica que un médico NO pueda tener dos citas en el mismo horario (slot).
+     * Esto previene conflictos de agenda del doctor.
+     */
     @Test
     void doctorCannotHaveTwoAppointmentsSameTimeSlot() {
-        // Create first appointment at 10:00
+        // Crear primera cita a las 10:00
         CreateAppointmentCommand cmd1 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "First appointment"
+            "Primera cita"
         );
         appointmentService.createAppointment(cmd1);
 
-        // Try to create second appointment at 10:00 (SAME slot - conflict)
+        // Intentar crear segunda cita a las 10:00 (MISMO slot - conflicto)
         CreateAppointmentCommand cmd2 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "Conflict appointment"
+            "Cita con conflicto"
         );
 
         IllegalStateException exception = assertThrows(
@@ -139,12 +147,16 @@ class AppointmentConflictTest {
         assertTrue(exception.getMessage().contains("médico"), "Error should mention doctor conflict");
     }
 
+    /**
+     * Verifica que un paciente SÍ pueda tener citas con DIFERENTES médicos
+     * en el mismo horario (RN-04: solo se prohíbe con el MISMO médico).
+     */
     @Test
     void patientCanHaveTwoAppointmentsSameTimeDifferentDoctors() {
-        // RN-04: A patient CAN have appointments with DIFFERENT doctors in the same time slot
-        // The rule only prevents a patient from having two appointments with the SAME doctor
+        // RN-04: Un paciente PUEDE tener citas con DIFERENTES doctores en el mismo horario
+        // La regla solo previene que un paciente tenga dos citas con el MISMO doctor
         
-        // Create test doctor 2
+        // Crear doctor 2 de prueba
         Doctor doctor2 = Doctor.builder()
                 .name("Dr. Test Doctor 2")
                 .email("test.doctor2@medisalud.com")
@@ -156,22 +168,22 @@ class AppointmentConflictTest {
         doctor2 = doctorRepositoryPort.save(doctor2);
         UUID doctor2Id = doctor2.getId();
 
-        // Create first appointment with patient1 and doctor1 at 10:00
+        // Crear primera cita con patient1 y doctor1 a las 10:00
         CreateAppointmentCommand cmd1 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "First appointment"
+            "Primera cita"
         );
         AppointmentResponse response1 = appointmentService.createAppointment(cmd1);
         assertEquals(AppointmentStatus.PROGRAMADA, response1.status());
 
-        // This should SUCCEED because it's a DIFFERENT doctor
+        // Esto DEBERÍA FUNCIONAR porque es un doctor DIFERENTE
         CreateAppointmentCommand cmd2 = new CreateAppointmentCommand(
             patientId,
             doctor2Id,
             futureDate.withHour(10).withMinute(0),
-            "Same time different doctor"
+            "Mismo horario diferente doctor"
         );
         AppointmentResponse response2 = appointmentService.createAppointment(cmd2);
         assertEquals(AppointmentStatus.PROGRAMADA, response2.status());
@@ -179,25 +191,29 @@ class AppointmentConflictTest {
         assertNotEquals(response1.id(), response2.id());
     }
 
+    /**
+     * Verifica que un paciente NO pueda tener dos citas con el MISMO médico
+     * en el mismo horario (RN-04).
+     */
     @Test
     void patientCannotHaveTwoAppointmentsSameTimeSameDoctor() {
-        // RN-04: A patient CANNOT have two appointments with the SAME doctor in the same time slot
+        // RN-04: Un paciente NO PUEDE tener dos citas con el MISMO médico en el mismo horario
         
-        // Create first appointment with patient1 and doctor1 at 10:00
+        // Crear primera cita con patient1 y doctor1 a las 10:00
         CreateAppointmentCommand cmd1 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "First appointment"
+            "Primera cita"
         );
         appointmentService.createAppointment(cmd1);
 
-        // Try to create second appointment with patient1 and doctor1 at 10:00 (SAME doctor - conflict)
+        // Intentar crear segunda cita con patient1 y doctor1 a las 10:00 (mismo doctor - conflicto)
         CreateAppointmentCommand cmd2 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "Same patient same doctor conflict"
+            "Mismo paciente mismo doctor conflicto"
         );
 
         IllegalStateException exception = assertThrows(
@@ -210,9 +226,14 @@ class AppointmentConflictTest {
             "Error debería mencionar conflicto de paciente/médico. Mensaje real: " + exception.getMessage());
     }
 
+    /**
+     * Verifica que diferentes pacientes puedan tener citas con el mismo médico
+     * en el mismo horario (esto debería ser permitido, pero el test verifica
+     * que el sistema detecta correctamente el conflicto de mismo paciente).
+     */
     @Test
     void differentPatientsCanHaveAppointmentsSameTimeSameDoctor() {
-        // This should be allowed - different patients, same doctor, same time
+        // Esto debería ser permitido - diferentes pacientes, mismo doctor, mismo horario
         CreateAppointmentCommand cmd1 = new CreateAppointmentCommand(
             patientId,
             doctorId,
@@ -221,7 +242,7 @@ class AppointmentConflictTest {
         );
         AppointmentResponse response1 = appointmentService.createAppointment(cmd1);
 
-        // This should fail because it's the SAME patient
+        // Esto debería fallar porque es el MISMO paciente
         CreateAppointmentCommand cmd2 = new CreateAppointmentCommand(
             patientId,
             doctorId,
@@ -236,29 +257,33 @@ class AppointmentConflictTest {
         assertNotNull(exception);
     }
 
+    /**
+     * Verifica que una cita cancelada no bloquee el horario,
+     * permitiendo que otro paciente reserve ese mismo slot.
+     */
     @Test
     void cancelledAppointmentDoesNotBlockNewBooking() {
-        // Create appointment
+        // Crear cita
         CreateAppointmentCommand cmd1 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "Original appointment"
+            "Cita original"
         );
         AppointmentResponse response1 = appointmentService.createAppointment(cmd1);
         UUID appointmentId = response1.id();
 
-        // Cancel the appointment
+        // Cancelar la cita
         appointmentService.cancelAppointment(
             new com.medisalud.appointments.domain.port.in.CancelAppointmentCommand(appointmentId)
         );
 
-        // Now should be able to book the same slot
+        // Ahora debería poder reservar ese mismo slot
         CreateAppointmentCommand cmd2 = new CreateAppointmentCommand(
             patientId,
             doctorId,
             futureDate.withHour(10).withMinute(0),
-            "New appointment in cancelled slot"
+            "Nueva cita en slot cancelado"
         );
         AppointmentResponse response2 = appointmentService.createAppointment(cmd2);
         assertEquals(AppointmentStatus.PROGRAMADA, response2.status());
